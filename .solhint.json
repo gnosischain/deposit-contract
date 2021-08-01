@@ -1,0 +1,12 @@
+{
+  "extends": "solhint:recommended",
+  "plugins": ["prettier"],
+  "rules": {
+    "var-name-mixedcase": "off",
+    "func-name-mixedcase": "off",
+    "reason-string": "off",
+    "no-inline-assembly": "off",
+    "no-complex-fallback": "off",
+    "compiler-version": ["error", "0.6.11"]
+  }
+}

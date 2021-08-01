@@ -1,0 +1,27 @@
+{
+  "name": "sbc-deposit-contract",
+  "version": "1.0.0",
+  "description": "Stake Beacon Chain official deposit contract",
+  "main": "index.js",
+  "repository": "https://github.com/canarynetwork/sbc-deposit-contract",
+  "author": "xDAI dev team",
+  "license": "CC0-1.0",
+  "scripts": {
+    "compile": "truffle compile",
+    "test": "truffle test",
+    "deploy-xdai": "truffle migrate --network xdai",
+    "deploy-sokol": "truffle migrate --network sokol",
+    "lint": "solhint --max-warnings 0 \"contracts/**/*.sol\""
+  },
+  "dependencies": {
+    "@truffle/hdwallet-provider": "^1.4.2",
+    "dotenv": "^10.0.0",
+    "truffle": "^5.4.3"
+  },
+  "devDependencies": {
+    "chai": "^4.3.4",
+    "chai-as-promised": "^7.1.1",
+    "solhint": "^3.3.6",
+    "solhint-plugin-prettier": "^0.0.5"
+  }
+}
