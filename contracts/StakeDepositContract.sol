@@ -5,13 +5,15 @@ pragma solidity 0.6.11;
 import "./interfaces/IDepositContract.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IERC165.sol";
+import "./utils/EIP1967Admin.sol";
+import "./utils/Claimable.sol";
 
 /**
  * @title StakeDepositContract
  * @dev Implementation of the ERC20 ETH2.0 deposit contract.
  * For the original implementation, see the Phase 0 specification under https://github.com/ethereum/eth2.0-specs
  */
-contract StakeDepositContract is IDepositContract, IERC165 {
+contract StakeDepositContract is IDepositContract, IERC165, EIP1967Admin, Claimable {
     uint private constant DEPOSIT_CONTRACT_TREE_DEPTH = 32;
     // NOTE: this also ensures `deposit_count` will fit into 64-bits
     uint private constant MAX_DEPOSIT_COUNT = 2**DEPOSIT_CONTRACT_TREE_DEPTH - 1;
@@ -116,6 +118,18 @@ contract StakeDepositContract is IDepositContract, IERC165 {
 
     function supportsInterface(bytes4 interfaceId) override external pure returns (bool) {
         return interfaceId == type(IERC165).interfaceId || interfaceId == type(IDepositContract).interfaceId;
+    }
+
+    /**
+     * @dev Allows to transfer any locked token from this contract.
+     * Only admin can call this method.
+     * Deposit-related tokens cannot be claimed.
+     * @param _token address of the token, if it is not provided (0x00..00), native coins will be transferred.
+     * @param _to address that will receive the locked tokens on this contract.
+     */
+    function claimTokens(address _token, address _to) external onlyAdmin {
+        require(address(stake_token) != _token);
+        _claimValues(_token, _to);
     }
 
     function to_little_endian_64(uint64 value) internal pure returns (bytes memory ret) {

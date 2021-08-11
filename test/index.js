@@ -62,9 +62,9 @@ contract('StakeDepositContractProxy', (accounts) => {
     await stake.transfer(proxy.address, 1)
     await token.transfer(proxy.address, 1)
 
-    await proxy.claimTokens(token.address, accounts[2], { from: accounts[1] }).should.be.rejected
-    await proxy.claimTokens(stake.address, accounts[2], { from: accounts[0] }).should.be.rejected
-    await proxy.claimTokens(token.address, accounts[2], { from: accounts[0] })
+    await contract.claimTokens(token.address, accounts[2], { from: accounts[1] }).should.be.rejected
+    await contract.claimTokens(stake.address, accounts[2], { from: accounts[0] }).should.be.rejected
+    await contract.claimTokens(token.address, accounts[2], { from: accounts[0] })
     expect((await token.balanceOf(accounts[2])).toString()).to.be.equal('1')
   })
 })
