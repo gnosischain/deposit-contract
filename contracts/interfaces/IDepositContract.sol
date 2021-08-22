@@ -13,9 +13,9 @@ interface IDepositContract {
     /// @param deposit_data_root The SHA-256 hash of the SSZ-encoded DepositData object.
     /// Used as a protection against malformed input.
     function deposit(
-        bytes calldata pubkey,
-        bytes calldata withdrawal_credentials,
-        bytes calldata signature,
+        bytes memory pubkey,
+        bytes memory withdrawal_credentials,
+        bytes memory signature,
         bytes32 deposit_data_root,
         uint256 stake_amount
     ) external;
