@@ -7,7 +7,7 @@ pragma solidity 0.8.7;
  * @dev Upgradeable proxy pattern implementation according to minimalistic EIP1967.
  */
 contract EIP1967Admin {
-    modifier onlyAdmin {
+    modifier onlyAdmin() {
         require(msg.sender == _admin());
         _;
     }

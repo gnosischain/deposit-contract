@@ -13,6 +13,9 @@
     "deploy-sokol": "truffle migrate --network sokol",
     "lint": "solhint --max-warnings 0 \"contracts/**/*.sol\""
   },
+  "prettier": {
+    "printWidth": 120
+  },
   "dependencies": {
     "@truffle/hdwallet-provider": "^1.4.2",
     "dotenv": "^10.0.0",
@@ -22,6 +25,8 @@
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
     "solhint": "^3.3.6",
-    "solhint-plugin-prettier": "^0.0.5"
+    "solhint-plugin-prettier": "^0.0.5",
+    "prettier": "^2.3.2",
+    "prettier-plugin-solidity": "^1.0.0-beta.17"
   }
 }
