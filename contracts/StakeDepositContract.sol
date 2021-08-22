@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 
-pragma solidity 0.6.11;
+pragma solidity 0.8.7;
 
 import "./interfaces/IDepositContract.sol";
 import "./interfaces/IERC20.sol";
@@ -25,7 +25,7 @@ contract StakeDepositContract is IDepositContract, IERC165, EIP1967Admin, Claima
 
     IERC20 public immutable stake_token;
 
-    constructor(address _token) public {
+    constructor(address _token) {
         stake_token = IERC20(_token);
         // Compute hashes in empty sparse Merkle tree
         for (uint height = 0; height < DEPOSIT_CONTRACT_TREE_DEPTH - 1; height++)
