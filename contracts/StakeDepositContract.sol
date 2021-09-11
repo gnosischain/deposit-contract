@@ -19,18 +19,15 @@ contract StakeDepositContract is IDepositContract, IERC165, IERC677Receiver, EIP
     // NOTE: this also ensures `deposit_count` will fit into 64-bits
     uint256 private constant MAX_DEPOSIT_COUNT = 2**DEPOSIT_CONTRACT_TREE_DEPTH - 1;
 
+    bytes32[DEPOSIT_CONTRACT_TREE_DEPTH] private zero_hashes;
+
     bytes32[DEPOSIT_CONTRACT_TREE_DEPTH] private branch;
     uint256 private deposit_count;
-
-    bytes32[DEPOSIT_CONTRACT_TREE_DEPTH] private zero_hashes;
 
     IERC20 public immutable stake_token;
 
     constructor(address _token) {
         stake_token = IERC20(_token);
-        // Compute hashes in empty sparse Merkle tree
-        for (uint256 height = 0; height < DEPOSIT_CONTRACT_TREE_DEPTH - 1; height++)
-            zero_hashes[height + 1] = sha256(abi.encodePacked(zero_hashes[height], zero_hashes[height]));
     }
 
     function get_deposit_root() external view override returns (bytes32) {
@@ -60,6 +57,31 @@ contract StakeDepositContract is IDepositContract, IERC165, IERC677Receiver, EIP
     ) external override {
         stake_token.transferFrom(msg.sender, address(this), stake_amount);
         _deposit(pubkey, withdrawal_credentials, signature, deposit_data_root, stake_amount);
+    }
+
+    function batchDeposit(
+        bytes calldata pubkeys,
+        bytes calldata withdrawal_credentials,
+        bytes calldata signatures,
+        bytes32[] calldata deposit_data_roots
+    ) external {
+        uint256 count = deposit_data_roots.length;
+        require(count > 0, "BatchDeposit: You should deposit at least one validator");
+        require(count <= 128, "BatchDeposit: You can deposit max 128 validators at a time");
+
+        require(pubkeys.length == count * 48, "BatchDeposit: Pubkey count don't match");
+        require(signatures.length == count * 96, "BatchDeposit: Signatures count don't match");
+        require(withdrawal_credentials.length == 32, "BatchDeposit: Withdrawal Credentials count don't match");
+
+        uint256 stake_amount = 32 ether;
+        stake_token.transferFrom(msg.sender, address(this), stake_amount * count);
+
+        for (uint256 i = 0; i < count; ++i) {
+            bytes memory pubkey = bytes(pubkeys[i * 48:(i + 1) * 48]);
+            bytes memory signature = bytes(signatures[i * 96:(i + 1) * 96]);
+
+            _deposit(pubkey, withdrawal_credentials, signature, deposit_data_roots[i], stake_amount);
+        }
     }
 
     function onTokenTransfer(
