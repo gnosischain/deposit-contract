@@ -24,10 +24,22 @@ contract StakeDepositContract is IDepositContract, IERC165, IERC677Receiver, EIP
     bytes32[DEPOSIT_CONTRACT_TREE_DEPTH] private branch;
     uint256 private deposit_count;
 
+    bool public paused;
+
     IERC20 public immutable stake_token;
 
     constructor(address _token) {
         stake_token = IERC20(_token);
+    }
+
+    modifier whenNotPaused() {
+        require(!paused);
+        _;
+    }
+
+    function setPaused(bool _paused) external onlyAdmin {
+        require(_paused != paused);
+        paused = _paused;
     }
 
     function get_deposit_root() external view override returns (bytes32) {
@@ -54,7 +66,7 @@ contract StakeDepositContract is IDepositContract, IERC165, IERC677Receiver, EIP
         bytes memory signature,
         bytes32 deposit_data_root,
         uint256 stake_amount
-    ) external override {
+    ) external override whenNotPaused {
         stake_token.transferFrom(msg.sender, address(this), stake_amount);
         _deposit(pubkey, withdrawal_credentials, signature, deposit_data_root, stake_amount);
     }
@@ -64,7 +76,7 @@ contract StakeDepositContract is IDepositContract, IERC165, IERC677Receiver, EIP
         bytes calldata withdrawal_credentials,
         bytes calldata signatures,
         bytes32[] calldata deposit_data_roots
-    ) external {
+    ) external whenNotPaused {
         uint256 count = deposit_data_roots.length;
         require(count > 0, "BatchDeposit: You should deposit at least one validator");
         require(count <= 128, "BatchDeposit: You can deposit max 128 validators at a time");
@@ -88,7 +100,7 @@ contract StakeDepositContract is IDepositContract, IERC165, IERC677Receiver, EIP
         address,
         uint256 stake_amount,
         bytes calldata data
-    ) external override returns (bool) {
+    ) external override whenNotPaused returns (bool) {
         require(msg.sender == address(stake_token));
         (
             bytes memory pubkey,

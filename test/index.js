@@ -128,4 +128,31 @@ contract('StakeDepositContractProxy', (accounts) => {
     await contract.claimTokens(token.address, accounts[2], { from: accounts[0] })
     expect((await token.balanceOf(accounts[2])).toString()).to.be.equal('1')
   })
+
+  it('should pause', async () => {
+    expect(await contract.paused()).to.be.equal(false)
+    await contract.setPaused(false, { from: accounts[1] }).should.be.rejected
+    await contract.setPaused(false, { from: accounts[0] }).should.be.rejected
+    await contract.setPaused(true, { from: accounts[1] }).should.be.rejected
+    await contract.setPaused(true, { from: accounts[0] })
+    expect(await contract.paused()).to.be.equal(true)
+
+    const data = web3.eth.abi.encodeParameters(
+      ['bytes', 'bytes', 'bytes', 'bytes32'],
+      [deposit.pubkey, deposit.withdrawal_credentials, deposit.signature, deposit.deposit_data_root]
+    )
+    await stake.transferAndCall(proxy.address, deposit.value, data).should.be.rejected
+
+    await contract.setPaused(true, { from: accounts[1] }).should.be.rejected
+    await contract.setPaused(true, { from: accounts[0] }).should.be.rejected
+    await contract.setPaused(false, { from: accounts[1] }).should.be.rejected
+    await contract.setPaused(false, { from: accounts[0] })
+    expect(await contract.paused()).to.be.equal(false)
+
+    await stake.transferAndCall(proxy.address, deposit.value, data).should.be.fulfilled
+
+    expect(await contract.get_deposit_count()).to.be.equal('0x0100000000000000')
+    expect(await contract.get_deposit_root()).to.be.equal('0x4e84f51e6b1cf47fd51d021635d791b9c99fe915990061a5a10390b9140e3592')
+    expect((await stake.balanceOf(contract.address)).toString()).to.be.equal('32000000000000000000')
+  })
 })
