@@ -102,19 +102,19 @@ contract StakeDepositContract is IDepositContract, IERC165, IERC677Receiver, EIP
         bytes calldata data
     ) external override whenNotPaused returns (bool) {
         require(msg.sender == address(stake_token));
-        require(data.length % 208 == 0, "DepositContract: incorrect deposit data length");
-        uint256 count = data.length / 208;
+        require(data.length % 176 == 32, "DepositContract: incorrect deposit data length");
+        uint256 count = data.length / 176;
         require(count > 0, "BatchDeposit: You should deposit at least one validator");
         if (count > 1) {
             require(count <= 128, "BatchDeposit: You can deposit max 128 validators at a time");
             require(stake_amount == 32 ether * count, "BatchDeposit: batch deposits require 32 STAKE deposit amount");
         }
 
-        for (uint256 p = 0; p < data.length; p += 208) {
+        bytes memory withdrawal_credentials = data[0:32];
+        for (uint256 p = 32; p < data.length; p += 176) {
             bytes memory pubkey = data[p:p + 48];
-            bytes memory withdrawal_credentials = data[p + 48:p + 80];
-            bytes memory signature = data[p + 80:p + 176];
-            bytes32 deposit_data_root = bytes32(data[p + 176:p + 208]);
+            bytes memory signature = data[p + 48:p + 144];
+            bytes32 deposit_data_root = bytes32(data[p + 144:p + 176]);
             _deposit(pubkey, withdrawal_credentials, signature, deposit_data_root, 32 ether);
         }
         return true;

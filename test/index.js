@@ -69,23 +69,23 @@ contract('StakeDepositContractProxy', (accounts) => {
 
   it('should batch deposit', async () => {
     await contract.batchDeposit(
-      deposit.pubkey + otherDeposit.pubkey.slice(2),
+      joinHex([deposit.pubkey, otherDeposit.pubkey]),
       deposit.withdrawal_credentials,
-      deposit.signature + otherDeposit.signature.slice(2),
+      joinHex([deposit.signature, otherDeposit.signature]),
       [deposit.deposit_data_root, otherDeposit.deposit_data_root]
     ).should.be.rejected
     await stake.approve(proxy.address, '32000000000000000000').should.be.fulfilled
     await contract.batchDeposit(
-      deposit.pubkey + otherDeposit.pubkey.slice(2),
+      joinHex([deposit.pubkey, otherDeposit.pubkey]),
       deposit.withdrawal_credentials,
-      deposit.signature + otherDeposit.signature.slice(2),
+      joinHex([deposit.signature, otherDeposit.signature]),
       [deposit.deposit_data_root, otherDeposit.deposit_data_root]
     ).should.be.rejected
     await stake.approve(proxy.address, '64000000000000000000').should.be.fulfilled
     await contract.batchDeposit(
-      deposit.pubkey + otherDeposit.pubkey.slice(2),
+      joinHex([deposit.pubkey, otherDeposit.pubkey]),
       deposit.withdrawal_credentials,
-      deposit.signature + otherDeposit.signature.slice(2),
+      joinHex([deposit.signature, otherDeposit.signature]),
       [deposit.deposit_data_root, otherDeposit.deposit_data_root]
     )
     expect(await contract.get_deposit_count()).to.be.equal('0x0200000000000000')
@@ -94,8 +94,8 @@ contract('StakeDepositContractProxy', (accounts) => {
   })
 
   it('should deposit via transferAndCall', async () => {
-    const invalidData = joinHex([deposit.pubkey, deposit.withdrawal_credentials, deposit.signature, invalidDataRoot])
-    const data = joinHex([deposit.pubkey, deposit.withdrawal_credentials, deposit.signature, deposit.deposit_data_root])
+    const invalidData = joinHex([deposit.withdrawal_credentials, deposit.pubkey, deposit.signature, invalidDataRoot])
+    const data = joinHex([deposit.withdrawal_credentials, deposit.pubkey, deposit.signature, deposit.deposit_data_root])
     await stake.transferAndCall(proxy.address, deposit.value, invalidData).should.be.rejected
     await stake.transferAndCall(proxy.address, deposit.value, data).should.be.fulfilled
     expect(await contract.get_deposit_count()).to.be.equal('0x0100000000000000')
@@ -104,13 +104,13 @@ contract('StakeDepositContractProxy', (accounts) => {
   })
 
   it('should batch deposit via transferAndCall', async () => {
-    const invalidData = joinHex([deposit.pubkey, deposit.withdrawal_credentials, deposit.signature, invalidDataRoot])
-    const data1 = joinHex([deposit.pubkey, deposit.withdrawal_credentials, deposit.signature, deposit.deposit_data_root])
-    const data2 = joinHex([otherDeposit.pubkey, otherDeposit.withdrawal_credentials, otherDeposit.signature, otherDeposit.deposit_data_root])
-    await stake.transferAndCall(proxy.address, '64000000000000000000', joinHex([invalidData, data1])).should.be.rejected
-    await stake.transferAndCall(proxy.address, '64000000000000000000', joinHex([data1, invalidData])).should.be.rejected
-    await stake.transferAndCall(proxy.address, '96000000000000000000', joinHex([data1, data2])).should.be.rejected
-    await stake.transferAndCall(proxy.address, '64000000000000000000', joinHex([data1, data2])).should.be.fulfilled
+    const invalidData = joinHex([deposit.pubkey, deposit.signature, invalidDataRoot])
+    const data1 = joinHex([deposit.pubkey, deposit.signature, deposit.deposit_data_root])
+    const data2 = joinHex([otherDeposit.pubkey, otherDeposit.signature, otherDeposit.deposit_data_root])
+    await stake.transferAndCall(proxy.address, '64000000000000000000', joinHex([deposit.withdrawal_credentials, invalidData, data1])).should.be.rejected
+    await stake.transferAndCall(proxy.address, '64000000000000000000', joinHex([deposit.withdrawal_credentials, data1, invalidData])).should.be.rejected
+    await stake.transferAndCall(proxy.address, '96000000000000000000', joinHex([deposit.withdrawal_credentials, data1, data2])).should.be.rejected
+    await stake.transferAndCall(proxy.address, '64000000000000000000', joinHex([deposit.withdrawal_credentials, data1, data2])).should.be.fulfilled
     expect(await contract.get_deposit_count()).to.be.equal('0x0200000000000000')
     expect(await contract.get_deposit_root()).to.be.equal('0x332ba4af23d9afe9a5ac1c80604c72a995686b8decfdae91f69798bc93813257')
     expect((await stake.balanceOf(contract.address)).toString()).to.be.equal('64000000000000000000')
@@ -148,7 +148,7 @@ contract('StakeDepositContractProxy', (accounts) => {
     await contract.setPaused(true, { from: accounts[0] })
     expect(await contract.paused()).to.be.equal(true)
 
-    const data = joinHex([deposit.pubkey, deposit.withdrawal_credentials, deposit.signature, deposit.deposit_data_root])
+    const data = joinHex([deposit.withdrawal_credentials, deposit.pubkey, deposit.signature, deposit.deposit_data_root])
     await stake.transferAndCall(proxy.address, deposit.value, data).should.be.rejected
 
     await contract.setPaused(true, { from: accounts[1] }).should.be.rejected
