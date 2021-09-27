@@ -105,10 +105,11 @@ contract StakeDepositContract is IDepositContract, IERC165, IERC677Receiver, EIP
         require(data.length % 176 == 32, "DepositContract: incorrect deposit data length");
         uint256 count = data.length / 176;
         require(count > 0, "BatchDeposit: You should deposit at least one validator");
+        uint256 stake_amount_per_deposit = stake_amount;
         if (count > 1) {
             require(count <= 128, "BatchDeposit: You can deposit max 128 validators at a time");
             require(stake_amount == 32 ether * count, "BatchDeposit: batch deposits require 32 STAKE deposit amount");
-            stake_amount = 32 ether;
+            stake_amount_per_deposit = 32 ether;
         }
 
         bytes memory withdrawal_credentials = data[0:32];
@@ -116,7 +117,7 @@ contract StakeDepositContract is IDepositContract, IERC165, IERC677Receiver, EIP
             bytes memory pubkey = data[p:p + 48];
             bytes memory signature = data[p + 48:p + 144];
             bytes32 deposit_data_root = bytes32(data[p + 144:p + 176]);
-            _deposit(pubkey, withdrawal_credentials, signature, deposit_data_root, stake_amount);
+            _deposit(pubkey, withdrawal_credentials, signature, deposit_data_root, stake_amount_per_deposit);
         }
         return true;
     }
