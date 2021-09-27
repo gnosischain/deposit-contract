@@ -4,7 +4,7 @@ pragma solidity 0.8.7;
 
 import "./IERC20.sol";
 
-interface IERC667 is IERC20 {
+interface IERC677 is IERC20 {
     function transferAndCall(
         address to,
         uint256 amount,
