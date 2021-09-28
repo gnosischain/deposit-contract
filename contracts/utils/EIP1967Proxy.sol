@@ -9,6 +9,11 @@ import "./EIP1967Admin.sol";
  * @dev Upgradeable proxy pattern implementation according to minimalistic EIP1967.
  */
 contract EIP1967Proxy is EIP1967Admin {
+    // EIP 1967
+    // bytes32(uint256(keccak256('eip1967.proxy.implementation')) - 1)
+    uint256 internal constant EIP1967_IMPLEMENTATION_STORAGE =
+        0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
     event Upgraded(address indexed implementation);
     event AdminChanged(address previousAdmin, address newAdmin);
 
@@ -18,9 +23,7 @@ contract EIP1967Proxy is EIP1967Admin {
 
     function implementation() public view returns (address res) {
         assembly {
-            // EIP 1967
-            // bytes32(uint256(keccak256('eip1967.proxy.implementation')) - 1)
-            res := sload(0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)
+            res := sload(EIP1967_IMPLEMENTATION_STORAGE)
         }
     }
 
@@ -72,9 +75,7 @@ contract EIP1967Proxy is EIP1967Admin {
         require(_admin != address(0));
         require(previousAdmin != _admin);
         assembly {
-            // EIP 1967
-            // bytes32(uint256(keccak256('eip1967.proxy.admin')) - 1)
-            sstore(0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103, _admin)
+            sstore(EIP1967_ADMIN_STORAGE, _admin)
         }
         emit AdminChanged(previousAdmin, _admin);
     }
@@ -87,9 +88,7 @@ contract EIP1967Proxy is EIP1967Admin {
         require(_implementation != address(0));
         require(implementation() != _implementation);
         assembly {
-            // EIP 1967
-            // bytes32(uint256(keccak256('eip1967.proxy.implementation')) - 1)
-            sstore(0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc, _implementation)
+            sstore(EIP1967_IMPLEMENTATION_STORAGE, _implementation)
         }
         emit Upgraded(_implementation);
     }
