@@ -7,6 +7,11 @@ pragma solidity 0.8.7;
  * @dev Upgradeable proxy pattern implementation according to minimalistic EIP1967.
  */
 contract EIP1967Admin {
+    // EIP 1967
+    // bytes32(uint256(keccak256('eip1967.proxy.admin')) - 1)
+    uint256 internal constant EIP1967_ADMIN_STORAGE =
+        0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
+
     modifier onlyAdmin() {
         require(msg.sender == _admin());
         _;
@@ -14,9 +19,7 @@ contract EIP1967Admin {
 
     function _admin() internal view returns (address res) {
         assembly {
-            // EIP 1967
-            // bytes32(uint256(keccak256('eip1967.proxy.admin')) - 1)
-            res := sload(0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103)
+            res := sload(EIP1967_ADMIN_STORAGE)
         }
     }
 }
