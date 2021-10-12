@@ -2,4 +2,5 @@ build/
 .env
 .idea/
 node_modules/
-
+coverage/
+coverage.json

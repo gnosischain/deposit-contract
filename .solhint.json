@@ -7,6 +7,8 @@
     "reason-string": "off",
     "no-inline-assembly": "off",
     "no-complex-fallback": "off",
+    "avoid-low-level-calls": "off",
+    "no-empty-blocks": "off",
     "func-visibility": ["warn", {"ignoreConstructors": true}],
     "prettier/prettier": "error",
     "compiler-version": ["error", "0.8.7"]

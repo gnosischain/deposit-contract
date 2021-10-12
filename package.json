@@ -9,6 +9,7 @@
   "scripts": {
     "compile": "truffle compile",
     "test": "truffle test",
+    "coverage": "truffle run coverage",
     "deploy-xdai": "truffle migrate --network xdai",
     "deploy-sokol": "truffle migrate --network sokol",
     "lint": "solhint --max-warnings 0 \"contracts/**/*.sol\""
@@ -17,6 +18,7 @@
     "printWidth": 120
   },
   "dependencies": {
+    "@openzeppelin/contracts": "^4.3.2",
     "@truffle/hdwallet-provider": "^1.4.2",
     "dotenv": "^10.0.0",
     "truffle": "^5.4.3"
@@ -24,9 +26,11 @@
   "devDependencies": {
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
+    "ethereumjs-util": "^7.1.2",
+    "prettier": "^2.3.2",
+    "prettier-plugin-solidity": "^1.0.0-beta.17",
     "solhint": "^3.3.6",
     "solhint-plugin-prettier": "^0.0.5",
-    "prettier": "^2.3.2",
-    "prettier-plugin-solidity": "^1.0.0-beta.17"
+    "solidity-coverage": "^0.7.17"
   }
 }

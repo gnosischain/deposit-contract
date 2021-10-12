@@ -1,0 +1,183 @@
+require('chai').use(require('chai-as-promised')).should()
+
+const { stakeBytecode } = require('./utils')
+
+const SBCDepositContractProxy = artifacts.require('SBCDepositContractProxy.sol')
+const SBCDepositContract = artifacts.require('SBCDepositContract.sol')
+const SBCWrapperProxy = artifacts.require('SBCWrapperProxy.sol')
+const SBCWrapper = artifacts.require('SBCWrapper.sol')
+const SBCTokenProxy = artifacts.require('SBCTokenProxy.sol')
+const SBCToken = artifacts.require('SBCToken.sol')
+const IERC677 = artifacts.require('IERC677.sol')
+
+const deposit = {
+  pubkey: '0x85e52247873439b180471ceb94ef9966c2cef1c194cc926e7d6494fecccbcdc076bcd751309f174dd8b7e21402c85ac0',
+  withdrawal_credentials: '0x0100000000000000000000000ae055097c6d159879521c384f1d2123d1f195e6',
+  signature: '0x869a92ea96afe7a08e19c0b89259c52d156f83b9af83d6e411f5f39ad857a06a3b9885d5f8d7ddb9371256fe181df4e011463e93b23af2653b501b9ebcfc32131ae7b8a1c815c6d8b2e7accb890f06f0a0bc4604050d658241ffb78220a2db58',
+  deposit_data_root: '0xdcc623abcf86090d33c63845a83b13064e558ea9aa38d5db07d2dd412bebc9f0',
+  value: '32000000000000000000'
+}
+const otherDeposit = {
+  pubkey: '0xa9529f1f7ac7e6607ac605e2152053e3d3a8ce7c48308654d452f5cb8a1eb5e238c4b9e992caf8ec6923994b07e4d236',
+  withdrawal_credentials: '0x0100000000000000000000000ae055097c6d159879521c384f1d2123d1f195e6',
+  signature: '0xb4c4fa967494ad174355ea8da67ddd73e49f0936ffbf95f4096031cd00a44a45a89d12f17c58b80de6db465581635c5412876fb12ed882eaa1f744cf5c71f493d8a2c5eee30d7181f8e70a5ebd9b43d2015e1dfbc1b466e307faf850601930f1',
+  deposit_data_root: '0xef472710da79583c8f513e816e178a746afe060a2ed5b0032696d898909d1d83',
+  value: '32000000000000000000'
+}
+const invalidDataRoot = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+
+function joinHex(args) {
+  return '0x' + args.map(web3.utils.stripHexPrefix).join('')
+}
+
+contract('SBCDepositContractProxy', (accounts) => {
+  let tokenProxy
+  let token
+  let wrapperProxy
+  let wrapper
+  let contractProxy
+  let contract
+  let stake
+  beforeEach(async () => {
+    IERC677.bytecode = stakeBytecode
+    stake = await IERC677.new()
+    tokenProxy = await SBCTokenProxy.new(accounts[0], 'SBC Token', 'SBCT')
+    token = await SBCToken.at(tokenProxy.address)
+    wrapperProxy = await SBCWrapperProxy.new(accounts[0], token.address)
+    wrapper = await SBCWrapper.at(wrapperProxy.address)
+    await token.setMinter(wrapper.address)
+    contractProxy = await SBCDepositContractProxy.new(accounts[0], token.address)
+    contract = await SBCDepositContract.at(contractProxy.address)
+
+    await wrapper.enableToken(stake.address, web3.utils.toWei('1'))
+    await stake.transferAndCall(wrapper.address, deposit.value + '00', '0x')
+    expect((await token.balanceOf(accounts[0])).toString()).to.be.equal('3200000000000000000000')
+  })
+
+  it('should deposit', async () => {
+    expect(await contract.get_deposit_count()).to.be.equal('0x0000000000000000')
+    expect(await contract.get_deposit_root()).to.be.equal('0xd70a234731285c6804c2a4f56711ddb8c82c99740f207854891028af34e27e5e')
+    await contract.deposit(
+      deposit.pubkey,
+      deposit.withdrawal_credentials,
+      deposit.signature,
+      deposit.deposit_data_root,
+      deposit.value
+    ).should.be.rejected
+    await token.approve(contract.address, deposit.value)
+    await contract.deposit(
+      deposit.pubkey,
+      deposit.withdrawal_credentials,
+      deposit.signature,
+      invalidDataRoot,
+      deposit.value
+    ).should.be.rejected
+    await contract.deposit(
+      deposit.pubkey,
+      deposit.withdrawal_credentials,
+      deposit.signature,
+      deposit.deposit_data_root,
+      deposit.value
+    )
+    expect(await contract.get_deposit_count()).to.be.equal('0x0100000000000000')
+    expect(await contract.get_deposit_root()).to.be.equal('0x4e84f51e6b1cf47fd51d021635d791b9c99fe915990061a5a10390b9140e3592')
+    expect((await token.balanceOf(contract.address)).toString()).to.be.equal('32000000000000000000')
+  })
+
+  it('should batch deposit', async () => {
+    await contract.batchDeposit(
+      joinHex([deposit.pubkey, otherDeposit.pubkey]),
+      deposit.withdrawal_credentials,
+      joinHex([deposit.signature, otherDeposit.signature]),
+      [deposit.deposit_data_root, otherDeposit.deposit_data_root]
+    ).should.be.rejected
+    await token.approve(contract.address, '32000000000000000000')
+    await contract.batchDeposit(
+      joinHex([deposit.pubkey, otherDeposit.pubkey]),
+      deposit.withdrawal_credentials,
+      joinHex([deposit.signature, otherDeposit.signature]),
+      [deposit.deposit_data_root, otherDeposit.deposit_data_root]
+    ).should.be.rejected
+    await token.approve(contract.address, '64000000000000000000')
+    await contract.batchDeposit(
+      joinHex([deposit.pubkey, otherDeposit.pubkey]),
+      deposit.withdrawal_credentials,
+      joinHex([deposit.signature, otherDeposit.signature]),
+      [deposit.deposit_data_root, otherDeposit.deposit_data_root]
+    )
+    expect(await contract.get_deposit_count()).to.be.equal('0x0200000000000000')
+    expect(await contract.get_deposit_root()).to.be.equal('0x332ba4af23d9afe9a5ac1c80604c72a995686b8decfdae91f69798bc93813257')
+    expect((await token.balanceOf(contract.address)).toString()).to.be.equal('64000000000000000000')
+  })
+
+  it('should deposit via transferAndCall', async () => {
+    const invalidData = joinHex([deposit.withdrawal_credentials, deposit.pubkey, deposit.signature, invalidDataRoot])
+    const data = joinHex([deposit.withdrawal_credentials, deposit.pubkey, deposit.signature, deposit.deposit_data_root])
+    await token.transferAndCall(contract.address, deposit.value, invalidData).should.be.rejected
+    await token.transferAndCall(contract.address, deposit.value, data)
+    expect(await contract.get_deposit_count()).to.be.equal('0x0100000000000000')
+    expect(await contract.get_deposit_root()).to.be.equal('0x4e84f51e6b1cf47fd51d021635d791b9c99fe915990061a5a10390b9140e3592')
+    expect((await token.balanceOf(contract.address)).toString()).to.be.equal('32000000000000000000')
+  })
+
+  it('should batch deposit via transferAndCall', async () => {
+    const invalidData = joinHex([deposit.pubkey, deposit.signature, invalidDataRoot])
+    const data1 = joinHex([deposit.pubkey, deposit.signature, deposit.deposit_data_root])
+    const data2 = joinHex([otherDeposit.pubkey, otherDeposit.signature, otherDeposit.deposit_data_root])
+    await token.transferAndCall(contract.address, '64000000000000000000', joinHex([deposit.withdrawal_credentials, invalidData, data1])).should.be.rejected
+    await token.transferAndCall(contract.address, '64000000000000000000', joinHex([deposit.withdrawal_credentials, data1, invalidData])).should.be.rejected
+    await token.transferAndCall(contract.address, '96000000000000000000', joinHex([deposit.withdrawal_credentials, data1, data2])).should.be.rejected
+    await token.transferAndCall(contract.address, '64000000000000000000', joinHex([deposit.withdrawal_credentials, data1, data2]))
+    expect(await contract.get_deposit_count()).to.be.equal('0x0200000000000000')
+    expect(await contract.get_deposit_root()).to.be.equal('0x332ba4af23d9afe9a5ac1c80604c72a995686b8decfdae91f69798bc93813257')
+    expect((await token.balanceOf(contract.address)).toString()).to.be.equal('64000000000000000000')
+  })
+
+  it('should pause', async () => {
+    expect(await contract.paused()).to.be.equal(false)
+    await contract.unpause({ from: accounts[1] }).should.be.rejected
+    await contract.unpause({ from: accounts[0] }).should.be.rejected
+    await contract.pause({ from: accounts[1] }).should.be.rejected
+    await contract.pause({ from: accounts[0] })
+    expect(await contract.paused()).to.be.equal(true)
+
+    const data = joinHex([deposit.withdrawal_credentials, deposit.pubkey, deposit.signature, deposit.deposit_data_root])
+    await token.transferAndCall(contract.address, deposit.value, data).should.be.rejected
+
+    await contract.pause({ from: accounts[1] }).should.be.rejected
+    await contract.pause({ from: accounts[0] }).should.be.rejected
+    await contract.unpause({ from: accounts[1] }).should.be.rejected
+    await contract.unpause({ from: accounts[0] })
+    expect(await contract.paused()).to.be.equal(false)
+
+    await token.transferAndCall(contract.address, deposit.value, data)
+
+    expect(await contract.get_deposit_count()).to.be.equal('0x0100000000000000')
+    expect(await contract.get_deposit_root()).to.be.equal('0x4e84f51e6b1cf47fd51d021635d791b9c99fe915990061a5a10390b9140e3592')
+    expect((await token.balanceOf(contract.address)).toString()).to.be.equal('32000000000000000000')
+  })
+
+  it('should claim tokens', async () => {
+    const otherToken = await IERC677.new()
+    await token.transfer(contract.address, 1)
+    await otherToken.transfer(contract.address, 1)
+
+    await contract.claimTokens(otherToken.address, accounts[2], { from: accounts[1] }).should.be.rejected
+    await contract.claimTokens(token.address, accounts[2], { from: accounts[0] }).should.be.rejected
+    await contract.claimTokens(otherToken.address, accounts[2], { from: accounts[0] })
+    expect((await otherToken.balanceOf(accounts[2])).toString()).to.be.equal('1')
+  })
+
+  it('should upgrade', async () => {
+    const impl = await SBCDepositContract.new(token.address)
+    await contractProxy.upgradeTo(impl.address, { from: accounts[1] }).should.be.rejected
+    await contractProxy.upgradeTo(impl.address, { from: accounts[0] })
+    expect(await contractProxy.implementation()).to.be.equal(impl.address)
+  })
+
+  it('should set admin', async () => {
+    await contractProxy.setAdmin(accounts[2], { from: accounts[1] }).should.be.rejected
+    await contractProxy.setAdmin(accounts[2], { from: accounts[0] })
+    expect(await contractProxy.admin()).to.be.equal(accounts[2])
+  })
+})

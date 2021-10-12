@@ -3,7 +3,7 @@
 pragma solidity 0.8.7;
 
 /**
- * @title EIP1967Proxy
+ * @title EIP1967Admin
  * @dev Upgradeable proxy pattern implementation according to minimalistic EIP1967.
  */
 contract EIP1967Admin {
