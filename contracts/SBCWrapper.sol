@@ -87,6 +87,9 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
 
         address sender = _msgSender();
 
+        // We do not plan to support any deflationary or rebasing tokens in this contract
+        // so it is not required to check that ERC20 balance has indeed change.
+        // It is an admin responsibility to carefully check that enabled token correctly implements ERC20 standard.
         IERC20(_token).safeTransferFrom(sender, address(this), _amount);
 
         _swapTokens(sender, _token, _amount);
@@ -112,6 +115,8 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
     /**
      * @dev Allows to transfer any locked token from this contract.
      * Only admin can call this method.
+     * While it is not allowed to claim previously enabled or paused tokens,
+     * the admin should still verify that the claimed token is a valid ERC20 token contract.
      * @param _token address of the token, if it is not provided (0x00..00), native coins will be transferred.
      * @param _to address that will receive the locked tokens on this contract.
      */
@@ -126,11 +131,11 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
         address _token,
         uint256 _amount
     ) internal {
-        uint256 received = (_amount * tokenRate[_token]) / 1 ether;
-        require(received > 0, "SBCWrapper: invalid amount");
+        uint256 acquired = (_amount * tokenRate[_token]) / 1 ether;
+        require(acquired > 0, "SBCWrapper: invalid amount");
 
-        sbcToken.mint(_receiver, received);
+        sbcToken.mint(_receiver, acquired);
 
-        emit Swap(_token, _receiver, _amount, received);
+        emit Swap(_token, _receiver, _amount, acquired);
     }
 }
