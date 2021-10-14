@@ -2,19 +2,18 @@
 
 pragma solidity 0.8.7;
 
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "./interfaces/IDepositContract.sol";
-import "./interfaces/IERC20.sol";
-import "./interfaces/IERC165.sol";
 import "./interfaces/IERC677Receiver.sol";
-import "./utils/EIP1967Admin.sol";
+import "./utils/PausableEIP1967Admin.sol";
 import "./utils/Claimable.sol";
 
 /**
- * @title StakeDepositContract
+ * @title SBCDepositContract
  * @dev Implementation of the ERC20 ETH2.0 deposit contract.
  * For the original implementation, see the Phase 0 specification under https://github.com/ethereum/eth2.0-specs
  */
-contract StakeDepositContract is IDepositContract, IERC165, IERC677Receiver, EIP1967Admin, Claimable {
+contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, PausableEIP1967Admin, Claimable {
     uint256 private constant DEPOSIT_CONTRACT_TREE_DEPTH = 32;
     // NOTE: this also ensures `deposit_count` will fit into 64-bits
     uint256 private constant MAX_DEPOSIT_COUNT = 2**DEPOSIT_CONTRACT_TREE_DEPTH - 1;
@@ -24,22 +23,10 @@ contract StakeDepositContract is IDepositContract, IERC165, IERC677Receiver, EIP
     bytes32[DEPOSIT_CONTRACT_TREE_DEPTH] private branch;
     uint256 private deposit_count;
 
-    bool public paused;
-
     IERC20 public immutable stake_token;
 
     constructor(address _token) {
         stake_token = IERC20(_token);
-    }
-
-    modifier whenNotPaused() {
-        require(!paused);
-        _;
-    }
-
-    function setPaused(bool _paused) external onlyAdmin {
-        require(_paused != paused);
-        paused = _paused;
     }
 
     function get_deposit_root() external view override returns (bytes32) {
@@ -101,14 +88,14 @@ contract StakeDepositContract is IDepositContract, IERC165, IERC677Receiver, EIP
         uint256 stake_amount,
         bytes calldata data
     ) external override whenNotPaused returns (bool) {
-        require(msg.sender == address(stake_token));
+        require(msg.sender == address(stake_token), "DepositContract: not a deposit token");
         require(data.length % 176 == 32, "DepositContract: incorrect deposit data length");
         uint256 count = data.length / 176;
         require(count > 0, "BatchDeposit: You should deposit at least one validator");
         uint256 stake_amount_per_deposit = stake_amount;
         if (count > 1) {
             require(count <= 128, "BatchDeposit: You can deposit max 128 validators at a time");
-            require(stake_amount == 32 ether * count, "BatchDeposit: batch deposits require 32 STAKE deposit amount");
+            require(stake_amount == 32 ether * count, "BatchDeposit: batch deposits require 32 SBC deposit amount");
             stake_amount_per_deposit = 32 ether;
         }
 
@@ -203,10 +190,10 @@ contract StakeDepositContract is IDepositContract, IERC165, IERC677Receiver, EIP
      * Only admin can call this method.
      * Deposit-related tokens cannot be claimed.
      * @param _token address of the token, if it is not provided (0x00..00), native coins will be transferred.
-     * @param _to address that will receive the locked tokens on this contract.
+     * @param _to address that will receive the locked tokens from this contract.
      */
     function claimTokens(address _token, address _to) external onlyAdmin {
-        require(address(stake_token) != _token);
+        require(address(stake_token) != _token, "DepositContract: not allowed to claim deposit token");
         _claimValues(_token, _to);
     }
 
