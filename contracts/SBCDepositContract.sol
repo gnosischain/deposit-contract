@@ -23,6 +23,8 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
     bytes32[DEPOSIT_CONTRACT_TREE_DEPTH] private branch;
     uint256 private deposit_count;
 
+    mapping(bytes => bytes32) public validator_withdrawal_credentials;
+
     IERC20 public immutable stake_token;
 
     constructor(address _token) {
@@ -126,6 +128,18 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
         require(stake_amount % 1 gwei == 0, "DepositContract: deposit value not multiple of gwei");
         uint256 deposit_amount = stake_amount / 1 gwei;
         require(deposit_amount <= type(uint64).max, "DepositContract: deposit value too high");
+
+        // Don't allow to use different withdrawal credentials for subsequent deposits
+        bytes32 saved_wc = validator_withdrawal_credentials[pubkey];
+        bytes32 wc;
+        assembly {
+            wc := mload(add(withdrawal_credentials, 32))
+        }
+        if (saved_wc == bytes32(0)) {
+            validator_withdrawal_credentials[pubkey] = wc;
+        } else {
+            require(saved_wc == wc, "DepositContract: invalid withdrawal_credentials");
+        }
 
         // Emit `DepositEvent` log
         bytes memory amount = to_little_endian_64(uint64(deposit_amount));
