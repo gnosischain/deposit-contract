@@ -24,6 +24,20 @@ const otherDeposit = {
   deposit_data_root: '0xef472710da79583c8f513e816e178a746afe060a2ed5b0032696d898909d1d83',
   value: '32000000000000000000'
 }
+const depositWC1 = {
+  pubkey: '0x95214485553be079e2723c04f8d18c110adaeb56c5e64b97f5df59862a0188c301686cdd55e31aa733a0988e9cfe4de4',
+  withdrawal_credentials: '0x0100000000000000000000000ae055097c6d159879521c384f1d2123d1f195e6',
+  signature: '0xaf388083b3377002f9bda48fb435a6d2bb9e06717494ed3e5e7d00711fbb0028d460e9aa3321a90c5705d7a9ccb5375b125d0394858650fc29c03880654f4c592301d7dbf0db6db2369c623e8734e291d0b0a81030c7c9a6df99b08d2172190f',
+  deposit_data_root: '0xcfe78c9aff7cbb24c317b05b8c6e29b93003f8271944c37c7d17e5490ee5d494',
+  value: '32000000000000000000'
+}
+const depositWC2 = {
+  pubkey: '0x95214485553be079e2723c04f8d18c110adaeb56c5e64b97f5df59862a0188c301686cdd55e31aa733a0988e9cfe4de4',
+  withdrawal_credentials: '0x010000000000000000000000c00e94cb662c3520282e6f5717214004a7f26888',
+  signature: '0xa0b87d3b9a1373d8097405bfb6f6ee4a237dfcdff6cf8be37932237504c80949409f22666900b3d5518b5f3a42d790960bbabec0221a73857d928a45c2f9913e6dc1f6b6b72a90dd4c8c7320913bedde1b9b6e33b20cd7fa18f5664faf162be4',
+  deposit_data_root: '0x6f776e2ebf8eed5b75896b63ecec56cc31e3ab637530a9c4d041d82a0cf46a7f',
+  value: '32000000000000000000'
+}
 const invalidDataRoot = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
 
 function joinHex(args) {
@@ -155,6 +169,26 @@ contract('SBCDepositContractProxy', (accounts) => {
     expect(await contract.get_deposit_count()).to.be.equal('0x0100000000000000')
     expect(await contract.get_deposit_root()).to.be.equal('0x4e84f51e6b1cf47fd51d021635d791b9c99fe915990061a5a10390b9140e3592')
     expect((await token.balanceOf(contract.address)).toString()).to.be.equal('32000000000000000000')
+  })
+
+  it('should not accept other withdrawal credentials', async () => {
+    await token.approve(contract.address, '96000000000000000000')
+    for (let i = 0; i < 2; i++) {
+      await contract.deposit(
+        depositWC1.pubkey,
+        depositWC1.withdrawal_credentials,
+        depositWC1.signature,
+        depositWC1.deposit_data_root,
+        depositWC1.value
+      )
+      await contract.deposit(
+        depositWC2.pubkey,
+        depositWC2.withdrawal_credentials,
+        depositWC2.signature,
+        depositWC2.deposit_data_root,
+        depositWC2.value
+      ).should.be.rejected
+    }
   })
 
   it('should claim tokens', async () => {
