@@ -1,0 +1,7 @@
+.env
+.git/
+.idea/
+build/
+coverage/
+node_modules/
+coverage.json
