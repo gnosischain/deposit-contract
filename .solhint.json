@@ -11,6 +11,6 @@
     "no-empty-blocks": "off",
     "func-visibility": ["warn", {"ignoreConstructors": true}],
     "prettier/prettier": "error",
-    "compiler-version": ["error", "0.8.7"]
+    "compiler-version": ["error", "0.8.9"]
   }
 }
