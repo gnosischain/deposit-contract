@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 
-pragma solidity 0.8.7;
+pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -28,7 +28,8 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
     SBCToken public immutable sbcToken;
 
     event Swap(address indexed token, address indexed user, uint256 amount, uint256 received);
-    event UpdateSwapRate(address indexed token, uint256 rate);
+    event TokenSwapEnabled(address indexed token, uint256 rate);
+    event TokenSwapPaused(address indexed token);
 
     constructor(SBCToken _sbcToken) {
         sbcToken = _sbcToken;
@@ -46,7 +47,7 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
         tokenStatus[_token] = TokenStatus.ENABLED;
         tokenRate[_token] = _rate;
 
-        emit UpdateSwapRate(_token, _rate);
+        emit TokenSwapEnabled(_token, _rate);
     }
 
     /**
@@ -55,7 +56,10 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
      * @param _token address of the paused token contract.
      */
     function pauseToken(address _token) external onlyAdmin {
+        require(tokenStatus[_token] == TokenStatus.ENABLED, "SBCWrapper: token is not enabled");
+
         tokenStatus[_token] = TokenStatus.PAUSED;
+        emit TokenSwapPaused(_token);
     }
 
     /**
