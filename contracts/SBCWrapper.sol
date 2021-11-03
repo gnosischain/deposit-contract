@@ -28,7 +28,8 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
     SBCToken public immutable sbcToken;
 
     event Swap(address indexed token, address indexed user, uint256 amount, uint256 received);
-    event TokenSwapEnabled(address indexed token, uint256 rate);
+    event SwapRateUpdated(address indexed token, uint256 rate);
+    event TokenSwapEnabled(address indexed token);
     event TokenSwapPaused(address indexed token);
 
     constructor(SBCToken _sbcToken) {
@@ -44,10 +45,14 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
     function enableToken(address _token, uint256 _rate) external onlyAdmin {
         require(_rate > 0, "SBCWrapper: invalid rate");
 
+        TokenStatus oldStatus = tokenStatus[_token];
         tokenStatus[_token] = TokenStatus.ENABLED;
         tokenRate[_token] = _rate;
 
-        emit TokenSwapEnabled(_token, _rate);
+        if (oldStatus != TokenStatus.ENABLED) {
+            emit TokenSwapEnabled(_token);
+        }
+        emit SwapRateUpdated(_token, _rate);
     }
 
     /**
