@@ -17,8 +17,12 @@ module.exports = async function (deployer, network, accounts) {
     const tokenProxy = await SBCTokenProxy.deployed()
     const token = await SBCToken.at(tokenProxy.address)
 
+    // deploy deposit contract
+    await deployer.deploy(SBCDepositContractProxy, admin, token.address)
+    const depositContractProxy = await SBCDepositContractProxy.deployed()
+
     // deploy token wrapper
-    await deployer.deploy(SBCWrapperProxy, admin, token.address)
+    await deployer.deploy(SBCWrapperProxy, admin, token.address, depositContractProxy.address)
     const wrapper = await SBCWrapperProxy.deployed()
 
     // set token minter to deployed wrapper
@@ -26,8 +30,5 @@ module.exports = async function (deployer, network, accounts) {
     if (accounts[0].toLowerCase() !== admin.toLowerCase()) {
       await tokenProxy.setAdmin(admin)
     }
-
-    // deploy deposit contract
-    await deployer.deploy(SBCDepositContractProxy, admin, token.address)
   }
 }

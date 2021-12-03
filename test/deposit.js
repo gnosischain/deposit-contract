@@ -57,15 +57,15 @@ contract('SBCDepositContractProxy', (accounts) => {
     stake = await IERC677.new()
     tokenProxy = await SBCTokenProxy.new(accounts[0], 'SBC Token', 'SBCT')
     token = await SBCToken.at(tokenProxy.address)
-    wrapperProxy = await SBCWrapperProxy.new(accounts[0], token.address)
-    wrapper = await SBCWrapper.at(wrapperProxy.address)
-    await token.setMinter(wrapper.address)
     contractProxy = await SBCDepositContractProxy.new(accounts[0], token.address)
     contract = await SBCDepositContract.at(contractProxy.address)
+    wrapperProxy = await SBCWrapperProxy.new(accounts[0], token.address, contract.address)
+    wrapper = await SBCWrapper.at(wrapperProxy.address)
+    await token.setMinter(wrapper.address)
 
-    await wrapper.enableToken(stake.address, web3.utils.toWei('1'))
-    await stake.transferAndCall(wrapper.address, deposit.value + '00', '0x')
-    expect((await token.balanceOf(accounts[0])).toString()).to.be.equal('3200000000000000000000')
+    await wrapper.enableToken(stake.address, web3.utils.toWei('32'))
+    await stake.transferAndCall(wrapper.address, web3.utils.toWei('100'), '0x')
+    expect((await token.balanceOf(accounts[0])).toString()).to.be.equal(web3.utils.toWei('3200'))
   })
 
   it('should deposit', async () => {
@@ -189,6 +189,20 @@ contract('SBCDepositContractProxy', (accounts) => {
         depositWC2.value
       ).should.be.rejected
     }
+  })
+
+  it('should wrap and deposit in a single transaction', async () => {
+    const invalidData = joinHex([deposit.withdrawal_credentials, deposit.pubkey, deposit.signature, invalidDataRoot])
+    const data = joinHex([deposit.withdrawal_credentials, deposit.pubkey, deposit.signature, deposit.deposit_data_root])
+
+    expect(await contract.get_deposit_count()).to.be.equal('0x0000000000000000')
+    await stake.transferAndCall(wrapper.address, web3.utils.toWei('1'), invalidData).should.be.rejected
+    await stake.transferAndCall(wrapper.address, web3.utils.toWei('32'), data).should.be.rejected
+    await stake.transferAndCall(wrapper.address, web3.utils.toWei('1'), data)
+
+    expect(await contract.get_deposit_count()).to.be.equal('0x0100000000000000')
+    expect(await contract.get_deposit_root()).to.be.equal('0x4e84f51e6b1cf47fd51d021635d791b9c99fe915990061a5a10390b9140e3592')
+    expect((await token.balanceOf(contract.address)).toString()).to.be.equal('32000000000000000000')
   })
 
   it('should claim tokens', async () => {

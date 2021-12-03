@@ -10,8 +10,12 @@ import "./SBCWrapper.sol";
  * @dev Upgradeable version of the underlying SBCWrapper.
  */
 contract SBCWrapperProxy is EIP1967Proxy {
-    constructor(address _admin, SBCToken _token) {
+    constructor(
+        address _admin,
+        SBCToken _token,
+        SBCDepositContract _depositContract
+    ) {
         _setAdmin(_admin);
-        _setImplementation(address(new SBCWrapper(_token)));
+        _setImplementation(address(new SBCWrapper(_token, _depositContract)));
     }
 }
