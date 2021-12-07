@@ -1,16 +1,18 @@
 require('dotenv').config()
 
+const SBCDepositContract = artifacts.require('SBCDepositContract')
 const SBCDepositContractProxy = artifacts.require('SBCDepositContractProxy')
 const SBCToken = artifacts.require('SBCToken')
 const SBCTokenProxy = artifacts.require('SBCTokenProxy')
+const SBCWrapper = artifacts.require('SBCWrapper')
 const SBCWrapperProxy = artifacts.require('SBCWrapperProxy')
 
 module.exports = async function (deployer, network, accounts) {
   if (network !== 'test' && network !== 'soliditycoverage') {
     const admin = process.env.ADMIN_ACCOUNT || accounts[0]
 
-    const name = 'SBC Token'
-    const symbol = 'SBCT'
+    const name = 'mGNO'
+    const symbol = 'mGNO'
 
     // deploy token
     await deployer.deploy(SBCTokenProxy, accounts[0], name, symbol)
@@ -18,8 +20,16 @@ module.exports = async function (deployer, network, accounts) {
     const token = await SBCToken.at(tokenProxy.address)
 
     // deploy token wrapper
-    await deployer.deploy(SBCWrapperProxy, admin, token.address)
-    const wrapper = await SBCWrapperProxy.deployed()
+    await deployer.deploy(SBCWrapper, token.address)
+    const wrapperImpl = await SBCWrapper.deployed()
+    await deployer.deploy(SBCWrapperProxy, accounts[0], wrapperImpl.address)
+    const wrapperProxy = await SBCWrapperProxy.deployed()
+    const wrapper = await SBCWrapper.at(wrapperProxy.address)
+
+    await wrapper.enableToken(process.env.STAKE_TOKEN_ADDRESS, web3.utils.toWei('32'))
+    if (accounts[0].toLowerCase() !== admin.toLowerCase()) {
+      await wrapperProxy.setAdmin(admin)
+    }
 
     // set token minter to deployed wrapper
     await token.setMinter(wrapper.address)
@@ -28,6 +38,8 @@ module.exports = async function (deployer, network, accounts) {
     }
 
     // deploy deposit contract
-    await deployer.deploy(SBCDepositContractProxy, admin, token.address)
+    await deployer.deploy(SBCDepositContract, token.address)
+    const depositImpl = await SBCDepositContract.deployed()
+    await deployer.deploy(SBCDepositContractProxy, admin, depositImpl.address)
   }
 }

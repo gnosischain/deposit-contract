@@ -26,7 +26,8 @@ contract('SBCWrapperProxy', (accounts) => {
     stake = await IERC677.new()
     tokenProxy = await SBCTokenProxy.new(accounts[0], 'SBC Token', 'SBCT')
     token = await SBCToken.at(tokenProxy.address)
-    wrapperProxy = await SBCWrapperProxy.new(accounts[0], token.address)
+    const wrapperImpl = await SBCWrapper.new(token.address)
+    wrapperProxy = await SBCWrapperProxy.new(accounts[0], wrapperImpl.address)
     wrapper = await SBCWrapper.at(wrapperProxy.address)
     await token.setMinter(wrapper.address)
 
