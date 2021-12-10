@@ -1,12 +1,16 @@
 FROM node:14-alpine
 
+LABEL org.opencontainers.image.source "https://github.com/gnosischain/deposit-contract"
+
 WORKDIR /app
 
 COPY package.json yarn.lock ./
 
 RUN yarn install
 
-COPY . .
+COPY truffle-config.js .
+COPY contracts contracts
+COPY scripts/deposit.js scripts/
 
 RUN yarn compile
 
