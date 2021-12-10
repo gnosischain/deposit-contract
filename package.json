@@ -1,9 +1,9 @@
 {
-  "name": "sbc-deposit-contract",
+  "name": "deposit-contract",
   "version": "1.0.0",
-  "description": "Stake Beacon Chain official deposit contract",
+  "description": "Gnosis Chain official deposit contract",
   "main": "index.js",
-  "repository": "https://github.com/canarynetwork/sbc-deposit-contract",
+  "repository": "https://github.com/gnosischain/deposit-contract",
   "author": "xDAI dev team",
   "license": "CC0-1.0",
   "scripts": {
