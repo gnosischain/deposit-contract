@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./utils/PausableEIP1967Admin.sol";
 import "./SBCToken.sol";
+import "./SBCDepositContract.sol";
 
 /**
  * @title SBCWrapper
@@ -26,14 +27,16 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
     mapping(address => uint256) public tokenRate;
 
     SBCToken public immutable sbcToken;
+    SBCDepositContract public immutable sbcDepositContract;
 
     event Swap(address indexed token, address indexed user, uint256 amount, uint256 received);
     event SwapRateUpdated(address indexed token, uint256 rate);
     event TokenSwapEnabled(address indexed token);
     event TokenSwapPaused(address indexed token);
 
-    constructor(SBCToken _sbcToken) {
+    constructor(SBCToken _sbcToken, SBCDepositContract _depositContract) {
         sbcToken = _sbcToken;
+        sbcDepositContract = _depositContract;
     }
 
     /**
@@ -108,16 +111,23 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
      * @dev ERC677 callback for swapping tokens in the simpler way during transferAndCall.
      * @param from address of the received token contract.
      * @param value amount of the received tokens.
+     * @param data should be empty for a simple token swap, otherwise will pass it further to the deposit contract.
      */
     function onTokenTransfer(
         address from,
         uint256 value,
-        bytes calldata
+        bytes calldata data
     ) external override nonReentrant whenNotPaused returns (bool) {
         address token = _msgSender();
         require(tokenStatus[token] == TokenStatus.ENABLED, "SBCWrapper: token is not enabled");
 
-        _swapTokens(from, token, value);
+        if (data.length == 0) {
+            _swapTokens(from, token, value);
+        } else {
+            uint256 swappedAmount = _swapTokens(address(this), token, value);
+            sbcToken.transferAndCall(address(sbcDepositContract), swappedAmount, data);
+        }
+
         return true;
     }
 
@@ -139,12 +149,14 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
         address _receiver,
         address _token,
         uint256 _amount
-    ) internal {
+    ) internal returns (uint256) {
         uint256 acquired = (_amount * tokenRate[_token]) / 1 ether;
         require(acquired > 0, "SBCWrapper: invalid amount");
 
         sbcToken.mint(_receiver, acquired);
 
         emit Swap(_token, _receiver, _amount, acquired);
+
+        return acquired;
     }
 }

@@ -26,7 +26,7 @@ contract('SBCWrapperProxy', (accounts) => {
     stake = await IERC677.new()
     tokenProxy = await SBCTokenProxy.new(accounts[0], 'SBC Token', 'SBCT')
     token = await SBCToken.at(tokenProxy.address)
-    wrapperProxy = await SBCWrapperProxy.new(accounts[0], token.address)
+    wrapperProxy = await SBCWrapperProxy.new(accounts[0], token.address, accounts[1])
     wrapper = await SBCWrapper.at(wrapperProxy.address)
     await token.setMinter(wrapper.address)
 
@@ -161,7 +161,7 @@ contract('SBCWrapperProxy', (accounts) => {
   })
 
   it('should upgrade', async () => {
-    const impl = await SBCWrapper.new(token.address)
+    const impl = await SBCWrapper.new(token.address, accounts[1])
     await wrapperProxy.upgradeTo(impl.address, { from: accounts[1] }).should.be.rejected
     await wrapperProxy.upgradeTo(impl.address, { from: accounts[0] })
     expect(await wrapperProxy.implementation()).to.be.equal(impl.address)
