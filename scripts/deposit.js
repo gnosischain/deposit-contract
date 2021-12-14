@@ -1,8 +1,20 @@
 const Web3 = require('web3')
 
 const { abi } = require('../build/contracts/IERC677.json')
+const { abi: depositABI } = require('../build/contracts/IDepositContract.json')
 
-const { RPC_URL, GAS_PRICE, STAKING_ACCOUNT_PRIVATE_KEY, BATCH_SIZE, N, OFFSET, TOKEN_ADDRESS, DEPOSIT_CONTRACT_ADDRESS } = process.env
+const {
+  RPC_URL,
+  GAS_PRICE,
+  STAKING_ACCOUNT_PRIVATE_KEY,
+  BATCH_SIZE,
+  N,
+  OFFSET,
+  TOKEN_ADDRESS,
+  DEPOSIT_CONTRACT_ADDRESS,
+  START_BLOCK_NUMBER,
+  SKIP_PREVIOUS_DEPOSITS_CHECK,
+} = process.env
 
 const web3 = new Web3(RPC_URL)
 const { address } = web3.eth.accounts.wallet.add(STAKING_ACCOUNT_PRIVATE_KEY)
@@ -14,6 +26,7 @@ const offset = parseInt(OFFSET, 10)
 const n = parseInt(N, 10)
 async function main() {
   const token = new web3.eth.Contract(abi, TOKEN_ADDRESS)
+  const depositContract = new web3.eth.Contract(depositABI, DEPOSIT_CONTRACT_ADDRESS)
   const deposits = depositData.slice(offset, offset + n)
 
   const wc = deposits[0].withdrawal_credentials
@@ -33,6 +46,23 @@ async function main() {
   if (web3.utils.toBN(tokenBalance).lt(depositAmountBN)) {
     console.log(`Token balance is not enough to cover all deposits, have ${tokenBalance}, required ${depositAmountBN.toString()}`)
     return
+  }
+
+  if (SKIP_PREVIOUS_DEPOSITS_CHECK !== 'true') {
+    console.log('Fetching existing deposits')
+    const fromBlock = parseInt(START_BLOCK_NUMBER, 10) || 0
+    const toBlock = await web3.eth.getBlockNumber()
+    const events = await getPastLogs(depositContract, 'DepositEvent', { fromBlock, toBlock })
+    console.log(`Found ${events.length} existing deposits`)
+    const pks = events.map(e => e.returnValues.pubkey)
+
+    for (const deposit of deposits) {
+      if (pks.some(pk => pk === '0x' + deposit.pubkey)) {
+        console.log(`Public key ${deposit.pubkey} was already seen in a different deposit, you probably don't want to reuse it`)
+        console.log('Use SKIP_PREVIOUS_DEPOSITS_CHECK=true to disable this check')
+        return
+      }
+    }
   }
 
   console.log(`Sending ${Math.ceil(deposits.length / batchSize)} deposit transactions for ${deposits.length} deposits in batches of ${batchSize} deposits`)
@@ -73,6 +103,31 @@ async function main() {
       console.log(`\t${count} next deposits: ${receipt.transactionHash}`)
       data = '0x' + wc
       count = 0
+    }
+  }
+}
+
+async function getPastLogs(contract, event, { fromBlock, toBlock }) {
+  try {
+    return contract.getPastEvents(event, {
+      fromBlock,
+      toBlock
+    })
+  } catch (e) {
+    if (e.message.includes('query returned more than') || e.message.toLowerCase().includes('timeout')) {
+      const middle = Math.round((fromBlock + toBlock) / 2)
+
+      const firstHalfEvents = await getPastLogs(contract, event, {
+        fromBlock,
+        toBlock: middle
+      })
+      const secondHalfEvents = await getPastLogs(contract, event, {
+        fromBlock: middle + 1,
+        toBlock
+      })
+      return [ ...firstHalfEvents, ...secondHalfEvents ]
+    } else {
+      throw e
     }
   }
 }
