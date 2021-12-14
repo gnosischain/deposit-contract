@@ -10,10 +10,12 @@ const {
   BATCH_SIZE,
   N,
   OFFSET,
-  TOKEN_ADDRESS,
-  DEPOSIT_CONTRACT_ADDRESS,
   START_BLOCK_NUMBER,
   SKIP_PREVIOUS_DEPOSITS_CHECK,
+  WRAPPER_ADDRESS,
+  TOKEN_ADDRESS,
+  META_TOKEN_ADDRESS,
+  DEPOSIT_CONTRACT_ADDRESS,
 } = process.env
 
 const web3 = new Web3(RPC_URL)
@@ -24,9 +26,12 @@ const depositData = require(process.argv[2])
 const batchSize = parseInt(BATCH_SIZE, 10)
 const offset = parseInt(OFFSET, 10)
 const n = parseInt(N, 10)
+const wrapAndDeposit = !!WRAPPER_ADDRESS && !!TOKEN_ADDRESS
 async function main() {
-  const token = new web3.eth.Contract(abi, TOKEN_ADDRESS)
   const depositContract = new web3.eth.Contract(depositABI, DEPOSIT_CONTRACT_ADDRESS)
+  const receiver = wrapAndDeposit ? WRAPPER_ADDRESS : DEPOSIT_CONTRACT_ADDRESS
+  const tokenAddress = wrapAndDeposit ? TOKEN_ADDRESS : META_TOKEN_ADDRESS
+  const token = new web3.eth.Contract(abi, tokenAddress)
   const deposits = depositData.slice(offset, offset + n)
 
   if (batchSize > 1) {
@@ -45,7 +50,7 @@ async function main() {
     return
   }
 
-  const depositAmountBN = web3.utils.toBN(32).mul(web3.utils.toBN('1000000000000000000'))
+  const depositAmountBN = web3.utils.toBN(wrapAndDeposit ? 1 : 32).mul(web3.utils.toBN('1000000000000000000'))
   const totalDepositAmountBN = depositAmountBN.muln(deposits.length)
   const tokenBalance = await token.methods.balanceOf(address).call()
 
@@ -88,7 +93,7 @@ async function main() {
 
     if (count === batchSize || i === deposits.length - 1) {
       const amount = depositAmountBN.muln(count)
-      const call = token.methods.transferAndCall(DEPOSIT_CONTRACT_ADDRESS, amount, data)
+      const call = token.methods.transferAndCall(receiver, amount, data)
       let gas
       try {
         gas = await call.estimateGas({ from: address })

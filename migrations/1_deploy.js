@@ -3,6 +3,7 @@ require('dotenv').config()
 const SBCDepositContractProxy = artifacts.require('SBCDepositContractProxy')
 const SBCToken = artifacts.require('SBCToken')
 const SBCTokenProxy = artifacts.require('SBCTokenProxy')
+const SBCWrapper = artifacts.require('SBCWrapper')
 const SBCWrapperProxy = artifacts.require('SBCWrapperProxy')
 
 module.exports = async function (deployer, network, accounts) {
@@ -22,13 +23,19 @@ module.exports = async function (deployer, network, accounts) {
     const depositContractProxy = await SBCDepositContractProxy.deployed()
 
     // deploy token wrapper
-    await deployer.deploy(SBCWrapperProxy, admin, token.address, depositContractProxy.address)
-    const wrapper = await SBCWrapperProxy.deployed()
+    await deployer.deploy(SBCWrapperProxy, accounts[0], token.address, depositContractProxy.address)
+    const wrapperProxy = await SBCWrapperProxy.deployed()
+    const wrapper = await SBCWrapper.at(wrapperProxy.address)
 
     // set token minter to deployed wrapper
     await token.setMinter(wrapper.address)
     if (accounts[0].toLowerCase() !== admin.toLowerCase()) {
       await tokenProxy.setAdmin(admin)
+    }
+
+    await wrapper.enableToken(process.env.STAKE_TOKEN_ADDRESS, web3.utils.toWei('32'))
+    if (accounts[0].toLowerCase() !== admin.toLowerCase()) {
+      await wrapperProxy.setAdmin(admin)
     }
   }
 }
