@@ -29,10 +29,15 @@ async function main() {
   const depositContract = new web3.eth.Contract(depositABI, DEPOSIT_CONTRACT_ADDRESS)
   const deposits = depositData.slice(offset, offset + n)
 
-  const wc = deposits[0].withdrawal_credentials
-  if (!deposits.every(d => d.withdrawal_credentials === wc)) {
-    console.log('Withdrawal credentials do not match')
-    return
+  if (batchSize > 1) {
+    for (let i = 0; i < deposits.length; i += batchSize) {
+      const wc = deposits[i].withdrawal_credentials
+      const endIndex = Math.min(i + batchSize, deposits.length)
+      if (!deposits.slice(i, endIndex).every(d => d.withdrawal_credentials === wc)) {
+        console.log(`Withdrawal credentials for batch [${i}..${endIndex - 1}] do not match`)
+        return
+      }
+    }
   }
 
   if (!deposits.every(d => d.amount === 32000000000)) {
@@ -40,11 +45,12 @@ async function main() {
     return
   }
 
-  const depositAmountBN =  web3.utils.toBN(32).mul(web3.utils.toBN('1000000000000000000'))
+  const depositAmountBN = web3.utils.toBN(32).mul(web3.utils.toBN('1000000000000000000'))
+  const totalDepositAmountBN = depositAmountBN.muln(deposits.length)
   const tokenBalance = await token.methods.balanceOf(address).call()
 
-  if (web3.utils.toBN(tokenBalance).lt(depositAmountBN)) {
-    console.log(`Token balance is not enough to cover all deposits, have ${tokenBalance}, required ${depositAmountBN.toString()}`)
+  if (web3.utils.toBN(tokenBalance).lt(totalDepositAmountBN)) {
+    console.log(`Token balance is not enough to cover all deposits, have ${tokenBalance}, required ${totalDepositAmountBN.toString()}`)
     return
   }
 
@@ -69,9 +75,12 @@ async function main() {
   let balance = await web3.eth.getBalance(address).then(web3.utils.toBN)
   let nonce = await web3.eth.getTransactionCount(address)
   let count = 0
-  let data = '0x' + wc
+  let data = '0x'
   for (let i = 0; i < deposits.length; i++) {
     const deposit = deposits[i]
+    if (i % batchSize === 0) {
+      data += deposit.withdrawal_credentials
+    }
     data += deposit.pubkey
     data += deposit.signature
     data += deposit.deposit_data_root
@@ -101,7 +110,7 @@ async function main() {
       })
       balance = balance.sub(web3.utils.toBN(GAS_PRICE).muln(receipt.gasUsed))
       console.log(`\t${count} next deposits: ${receipt.transactionHash}`)
-      data = '0x' + wc
+      data = '0x'
       count = 0
     }
   }
