@@ -26,11 +26,18 @@ const depositData = require(process.argv[2])
 const batchSize = parseInt(BATCH_SIZE, 10)
 const offset = parseInt(OFFSET, 10)
 const n = parseInt(N, 10)
-const wrapAndDeposit = !!WRAPPER_ADDRESS && !!TOKEN_ADDRESS
 async function main() {
+  const useMetaTokenDeposit = !!META_TOKEN_ADDRESS && !WRAPPER_ADDRESS && !TOKEN_ADDRESS
+  const useWrapAndDeposit = !META_TOKEN_ADDRESS && !!WRAPPER_ADDRESS && !!TOKEN_ADDRESS
+  if (useMetaTokenDeposit === useWrapAndDeposit) {
+    console.log('Specify either a single META_TOKEN_ADDRESS variable for depositing mGNO directly, ' +
+      'or specify both WRAPPER_ADDRESS and TOKEN_ADDRESS variables for depositing GNO without manual mGNO conversion.')
+    return
+  }
+
   const depositContract = new web3.eth.Contract(depositABI, DEPOSIT_CONTRACT_ADDRESS)
-  const receiver = wrapAndDeposit ? WRAPPER_ADDRESS : DEPOSIT_CONTRACT_ADDRESS
-  const tokenAddress = wrapAndDeposit ? TOKEN_ADDRESS : META_TOKEN_ADDRESS
+  const receiver = useWrapAndDeposit ? WRAPPER_ADDRESS : DEPOSIT_CONTRACT_ADDRESS
+  const tokenAddress = useWrapAndDeposit ? TOKEN_ADDRESS : META_TOKEN_ADDRESS
   const token = new web3.eth.Contract(abi, tokenAddress)
   const deposits = depositData.slice(offset, offset + n)
 
@@ -50,7 +57,7 @@ async function main() {
     return
   }
 
-  const depositAmountBN = web3.utils.toBN(wrapAndDeposit ? 1 : 32).mul(web3.utils.toBN('1000000000000000000'))
+  const depositAmountBN = web3.utils.toBN(useWrapAndDeposit ? 1 : 32).mul(web3.utils.toBN('1000000000000000000'))
   const totalDepositAmountBN = depositAmountBN.muln(deposits.length)
   const tokenBalance = await token.methods.balanceOf(address).call()
 
