@@ -1,6 +1,6 @@
 {
   "name": "deposit-contract",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Gnosis Chain official deposit contract",
   "main": "index.js",
   "repository": "https://github.com/gnosischain/deposit-contract",
