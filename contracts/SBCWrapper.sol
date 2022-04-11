@@ -4,16 +4,19 @@ pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./interfaces/IDepositContract.sol";
+import "./interfaces/ISBCWrapper.sol";
+import "./interfaces/IMintableBurnableERC677.sol";
+import "./interfaces/IERC677Receiver.sol";
 import "./utils/PausableEIP1967Admin.sol";
-import "./SBCToken.sol";
-import "./SBCDepositContract.sol";
+import "./utils/Claimable.sol";
 
 /**
  * @title SBCWrapper
  * @dev Wrapper engine contract for minting wrapped tokens that can be deposited into SBC.
  * Used for wrapping of STAKE and other possible ERC20 tokens.
  */
-contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, ReentrancyGuard {
+contract SBCWrapper is IERC677Receiver, ISBCWrapper, PausableEIP1967Admin, Claimable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     enum TokenStatus {
@@ -26,15 +29,16 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
     // if tokenRate[A] = X, then user will receive Y * X / 10**18 wrapped tokens for locking Y of A tokens.
     mapping(address => uint256) public tokenRate;
 
-    SBCToken public immutable sbcToken;
-    SBCDepositContract public immutable sbcDepositContract;
+    IMintableBurnableERC677 public immutable sbcToken;
+    IDepositContract public immutable sbcDepositContract;
 
     event Swap(address indexed token, address indexed user, uint256 amount, uint256 received);
+    event Unwrap(address indexed token, address indexed user, uint256 amount, uint256 received);
     event SwapRateUpdated(address indexed token, uint256 rate);
     event TokenSwapEnabled(address indexed token);
     event TokenSwapPaused(address indexed token);
 
-    constructor(SBCToken _sbcToken, SBCDepositContract _depositContract) {
+    constructor(IMintableBurnableERC677 _sbcToken, IDepositContract _depositContract) {
         sbcToken = _sbcToken;
         sbcDepositContract = _depositContract;
     }
@@ -119,6 +123,16 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
         bytes calldata data
     ) external override nonReentrant whenNotPaused returns (bool) {
         address token = _msgSender();
+
+        if (token == address(sbcToken)) {
+            require(data.length == 64, "SBCWrapper: invalid data length");
+            (address targetToken, address receiver) = abi.decode(data, (address, address));
+
+            require(tokenStatus[targetToken] == TokenStatus.ENABLED, "SBCWrapper: token is not enabled");
+            _unwrapTokens(targetToken, receiver, value);
+            return true;
+        }
+
         require(tokenStatus[token] == TokenStatus.ENABLED, "SBCWrapper: token is not enabled");
 
         if (data.length == 0) {
@@ -129,6 +143,27 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
         }
 
         return true;
+    }
+
+    function unwrapTokens(
+        address targetToken,
+        address receiver,
+        uint256 value
+    ) external {
+        require(tokenStatus[targetToken] == TokenStatus.ENABLED, "SBCWrapper: token is not enabled");
+        sbcToken.transferFrom(_msgSender(), address(this), value);
+        _unwrapTokens(targetToken, receiver, value);
+    }
+
+    /**
+     * @dev Mints new tokens.
+     * Intended to be only called from the deposit contract, whenever withdrawn rewards will start to exceed total supply.
+     * @param _to tokens receiver.
+     * @param _amount amount of tokens to mint.
+     */
+    function mint(address _to, uint256 _amount) external {
+        require(_msgSender() == address(sbcDepositContract), "SBCToken: not a SBCDepositContract");
+        sbcToken.mint(_to, _amount);
     }
 
     /**
@@ -158,5 +193,21 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
         emit Swap(_token, _receiver, _amount, acquired);
 
         return acquired;
+    }
+
+    function _unwrapTokens(
+        address _token,
+        address _receiver,
+        uint256 _amount
+    ) internal {
+        sbcToken.burn(_amount);
+        // few wei can be lost here due to division
+        uint256 acquired = (_amount * 1 ether) / tokenRate[_token];
+
+        if (acquired > 0) {
+            IERC20(_token).transfer(_receiver, acquired);
+        }
+
+        emit Unwrap(_token, _receiver, _amount, acquired);
     }
 }

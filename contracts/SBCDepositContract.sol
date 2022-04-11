@@ -3,10 +3,14 @@
 pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import "./interfaces/IBlockReward.sol";
 import "./interfaces/IDepositContract.sol";
+import "./interfaces/ISBCWrapper.sol";
+import "./interfaces/IERC677.sol";
 import "./interfaces/IERC677Receiver.sol";
 import "./utils/PausableEIP1967Admin.sol";
 import "./utils/Claimable.sol";
+import "./interfaces/IBlockReward.sol";
 
 /**
  * @title SBCDepositContract
@@ -25,10 +29,19 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
 
     mapping(bytes => bytes32) public validator_withdrawal_credentials;
 
-    IERC20 public immutable stake_token;
+    mapping(uint256 => uint256) private processed_withdrawals_bitmap;
+    IBlockReward public block_reward;
+    ISBCWrapper public wrapper;
+
+    IERC677 public immutable stake_token;
 
     constructor(address _token) {
-        stake_token = IERC20(_token);
+        stake_token = IERC677(_token);
+    }
+
+    modifier enabledWithdrawals() {
+        require(address(wrapper) != address(0), "DepositContract: withdrawals are not enabled");
+        _;
     }
 
     function get_deposit_root() external view override returns (bytes32) {
@@ -109,6 +122,53 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
             _deposit(pubkey, withdrawal_credentials, signature, deposit_data_root, stake_amount_per_deposit);
         }
         return true;
+    }
+
+    function initializeWithdrawals(ISBCWrapper _wrapper, IBlockReward _block_reward) external onlyAdmin {
+        require(_block_reward.blockRewardContractId() == 0x0d35a7ca, "DepositContract: invalid block_reward");
+        require(_wrapper.sbcToken() == stake_token, "DepositContract: wrapper token is different");
+        require(_wrapper.sbcDepositContract() == this, "DepositContract: wrapper deposit contract is different");
+        wrapper = _wrapper;
+        block_reward = _block_reward;
+    }
+
+    function withdraw(
+        uint256[] memory indices,
+        address receiver,
+        bytes calldata data
+    ) external enabledWithdrawals whenNotPaused {
+        require(indices.length > 0 && indices.length <= 128, "DepositContract: unsupported number of withdrawals");
+
+        uint256 next_withdrawal_index = block_reward.nextWithdrawalIndex();
+        uint256 amount = 0;
+        for (uint256 i = 0; i < indices.length; i++) {
+            uint256 index = indices[i];
+            require(index < next_withdrawal_index, "DepositContract: unknown withdrawal index");
+            IBlockReward.Withdrawal memory withdrawal = block_reward.withdrawal(index);
+            require(withdrawal.receiver == msg.sender, "DepositContract: cannot withdraw for a different receiver");
+            require(_flipIndex(index), "DepositContract: withdrawal already processed");
+            amount += withdrawal.amount;
+
+            emit WithdrawalEvent(index, withdrawal.receiver, withdrawal.amount);
+        }
+
+        uint256 balance = stake_token.balanceOf(address(this));
+        if (balance < amount) {
+            wrapper.mint(address(this), amount - balance);
+        }
+        if (data.length == 0) {
+            stake_token.transfer(receiver, amount);
+        } else {
+            stake_token.transferAndCall(receiver, amount, data);
+        }
+    }
+
+    function _flipIndex(uint256 index) private returns (bool) {
+        (uint256 pos, uint256 offset) = (index >> 8, index % 8);
+        uint256 bitmap = processed_withdrawals_bitmap[pos];
+        uint256 mask = 1 << offset;
+        processed_withdrawals_bitmap[pos] = bitmap | mask;
+        return (bitmap & mask) == 0;
     }
 
     function _deposit(

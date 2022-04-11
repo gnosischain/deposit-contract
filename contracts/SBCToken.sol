@@ -39,6 +39,16 @@ contract SBCToken is IERC677, ERC20Pausable, PausableEIP1967Admin, Claimable {
     }
 
     /**
+     * @dev Burns tokens.
+     * To avoid accidental burns, only minter (SBCWrapper) is allowed to destroy tokens.
+     * @param _amount amount of tokens to burn.
+     */
+    function burn(uint256 _amount) external {
+        require(_msgSender() == _minter, "SBCToken: not a minter");
+        _burn(_msgSender(), _amount);
+    }
+
+    /**
      * @dev Implements the ERC677 transferAndCall standard.
      * Executes a regular transfer, but calls the receiver's function to handle them in the same transaction.
      * @param _to tokens receiver.
