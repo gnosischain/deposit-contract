@@ -1,12 +1,12 @@
 require('chai').use(require('chai-as-promised')).should()
 
-const { stakeBytecode, makeLegacyMsg, ethSignTypedData } = require('./utils')
+const { makeLegacyMsg, ethSignTypedData } = require('./utils')
 
 const SBCWrapperProxy = artifacts.require('SBCWrapperProxy.sol')
 const SBCWrapper = artifacts.require('SBCWrapper.sol')
 const SBCTokenProxy = artifacts.require('SBCTokenProxy.sol')
 const SBCToken = artifacts.require('SBCToken.sol')
-const IERC677 = artifacts.require('IERC677.sol')
+const PermittableToken = artifacts.require('PermittableToken.sol')
 const IPermittableToken = artifacts.require('IPermittableToken.sol')
 
 const oneEther = web3.utils.toWei('1')
@@ -22,8 +22,8 @@ contract('SBCWrapperProxy', (accounts) => {
   let wrapper
   let stake
   beforeEach(async () => {
-    IERC677.bytecode = stakeBytecode
-    stake = await IERC677.new()
+    stake = await PermittableToken.new('Test token', 'TEST', 18, 1337)
+    await stake.mint(accounts[0], web3.utils.toWei('1000'))
     tokenProxy = await SBCTokenProxy.new(accounts[0], 'SBC Token', 'SBCT')
     token = await SBCToken.at(tokenProxy.address)
     wrapperProxy = await SBCWrapperProxy.new(accounts[0], token.address, accounts[1])
@@ -31,7 +31,8 @@ contract('SBCWrapperProxy', (accounts) => {
     await token.setMinter(wrapper.address)
 
     await wrapper.enableToken(stake.address, oneEther)
-    otherToken = await IERC677.new()
+    otherToken = await PermittableToken.new('Other Test token', 'TEST2', 18, 1337)
+    await otherToken.mint(accounts[0], web3.utils.toWei('1000'))
     await stake.approve(wrapper.address, tenEther)
     await otherToken.approve(wrapper.address, tenEther)
   })
@@ -119,7 +120,8 @@ contract('SBCWrapperProxy', (accounts) => {
   })
 
   it('should allow to claim disabled tokens', async () => {
-    const disabledToken = await IERC677.new()
+    const disabledToken = await PermittableToken.new('Disabled Test token', 'TEST', 18, 1337)
+    await disabledToken.mint(accounts[0], web3.utils.toWei('1000'))
     await wrapper.enableToken(otherToken.address, twoEther)
     await wrapper.pauseToken(otherToken.address)
 
@@ -140,9 +142,9 @@ contract('SBCWrapperProxy', (accounts) => {
   it('should swap through permit', async () => {
     const permittable = await IPermittableToken.at(stake.address)
     const domain = {
-      name: 'STAKE',
+      name: 'Test token',
       version: '1',
-      chainId: 1,
+      chainId: 1337,
       verifyingContract: stake.address
     }
     const legacyMsg = makeLegacyMsg(domain, accounts[0], wrapper.address, 0, '9999999999999', true)

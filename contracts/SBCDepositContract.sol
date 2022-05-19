@@ -30,8 +30,10 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
     mapping(bytes => bytes32) public validator_withdrawal_credentials;
 
     mapping(uint256 => uint256) private processed_withdrawals_bitmap;
+    mapping(address => mapping(address => bool)) public allowed_operators;
     IBlockReward public block_reward;
     ISBCWrapper public wrapper;
+    uint256 public totalWithdrawalsAmount;
 
     IERC677 public immutable stake_token;
 
@@ -132,6 +134,15 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
         block_reward = _block_reward;
     }
 
+    function approveOperator(
+        address _receiver,
+        address _operator,
+        bool _approval
+    ) external {
+        require(msg.sender == _receiver || msg.sender == _admin(), "DepositContract: not allowed to set an operator");
+        allowed_operators[_receiver][_operator] = _approval;
+    }
+
     function withdraw(
         uint256[] memory indices,
         address receiver,
@@ -145,13 +156,19 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
             uint256 index = indices[i];
             require(index < next_withdrawal_index, "DepositContract: unknown withdrawal index");
             IBlockReward.Withdrawal memory withdrawal = block_reward.withdrawal(index);
-            require(withdrawal.receiver == msg.sender, "DepositContract: cannot withdraw for a different receiver");
+            if (withdrawal.receiver != msg.sender) {
+                require(
+                    allowed_operators[withdrawal.receiver][msg.sender],
+                    "DepositContract: cannot withdraw for a different receiver without approval"
+                );
+            }
             require(_flipIndex(index), "DepositContract: withdrawal already processed");
             amount += withdrawal.amount;
 
             emit WithdrawalEvent(index, withdrawal.receiver, withdrawal.amount);
         }
 
+        totalWithdrawalsAmount += amount;
         uint256 balance = stake_token.balanceOf(address(this));
         if (balance < amount) {
             wrapper.mint(address(this), amount - balance);

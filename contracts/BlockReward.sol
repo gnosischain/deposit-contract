@@ -96,8 +96,10 @@ contract BlockReward is IBlockReward, EIP1967Admin {
 
     uint256 public nextWithdrawalIndex;
 
+    uint256 public totalWithdrawalsAmount;
+
     // Reserved storage slots to allow for layout changes in the future.
-    uint256[24] private ______gapForPublic;
+    uint256[23] private ______gapForPublic;
 
     // ================================================ Events ========================================================
 
@@ -179,14 +181,18 @@ contract BlockReward is IBlockReward, EIP1967Admin {
         }
 
         uint256 nextIndex = nextWithdrawalIndex;
+        uint256 totalAmountDelta = 0;
         for (uint256 i = 0; i < indices.length; i++) {
             uint256 index = indices[i];
             if (index >= nextIndex) {
                 nextIndex = index + 1;
             }
-            withdrawals[index] = Withdrawal(receivers[i], amounts[i] * 1 gwei);
+            uint256 amount = amounts[i] * 1 gwei;
+            withdrawals[index] = Withdrawal(receivers[i], amount);
+            totalAmountDelta += amount;
         }
         nextWithdrawalIndex = nextIndex;
+        totalWithdrawalsAmount += totalAmountDelta;
     }
 
     /// @dev Sets the array of `erc-to-native` bridge addresses which are allowed to call some of the functions with
