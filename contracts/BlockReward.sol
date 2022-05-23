@@ -121,7 +121,7 @@ contract BlockReward is IBlockReward, EIP1967Admin {
     /// @dev Ensures the caller is the SYSTEM_ADDRESS.
     /// See https://openethereum.github.io/wiki/Block-Reward-Contract.html
     modifier onlySystem() {
-        // require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
+        require(msg.sender == 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE);
         _;
     }
 
@@ -175,7 +175,7 @@ contract BlockReward is IBlockReward, EIP1967Admin {
         uint256[] calldata indices,
         address[] calldata receivers,
         uint256[] calldata amounts
-    ) external {
+    ) external onlySystem {
         if (indices.length > 16 || indices.length != receivers.length || indices.length != amounts.length) {
             return;
         }

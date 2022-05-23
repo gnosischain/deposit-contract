@@ -17,28 +17,7 @@ const deposit = {
   deposit_data_root: '0xdcc623abcf86090d33c63845a83b13064e558ea9aa38d5db07d2dd412bebc9f0',
   value: '32000000000000000000'
 }
-const otherDeposit = {
-  pubkey: '0xa9529f1f7ac7e6607ac605e2152053e3d3a8ce7c48308654d452f5cb8a1eb5e238c4b9e992caf8ec6923994b07e4d236',
-  withdrawal_credentials: '0x0100000000000000000000000ae055097c6d159879521c384f1d2123d1f195e6',
-  signature: '0xb4c4fa967494ad174355ea8da67ddd73e49f0936ffbf95f4096031cd00a44a45a89d12f17c58b80de6db465581635c5412876fb12ed882eaa1f744cf5c71f493d8a2c5eee30d7181f8e70a5ebd9b43d2015e1dfbc1b466e307faf850601930f1',
-  deposit_data_root: '0xef472710da79583c8f513e816e178a746afe060a2ed5b0032696d898909d1d83',
-  value: '32000000000000000000'
-}
-const depositWC1 = {
-  pubkey: '0x95214485553be079e2723c04f8d18c110adaeb56c5e64b97f5df59862a0188c301686cdd55e31aa733a0988e9cfe4de4',
-  withdrawal_credentials: '0x0100000000000000000000000ae055097c6d159879521c384f1d2123d1f195e6',
-  signature: '0xaf388083b3377002f9bda48fb435a6d2bb9e06717494ed3e5e7d00711fbb0028d460e9aa3321a90c5705d7a9ccb5375b125d0394858650fc29c03880654f4c592301d7dbf0db6db2369c623e8734e291d0b0a81030c7c9a6df99b08d2172190f',
-  deposit_data_root: '0xcfe78c9aff7cbb24c317b05b8c6e29b93003f8271944c37c7d17e5490ee5d494',
-  value: '32000000000000000000'
-}
-const depositWC2 = {
-  pubkey: '0x95214485553be079e2723c04f8d18c110adaeb56c5e64b97f5df59862a0188c301686cdd55e31aa733a0988e9cfe4de4',
-  withdrawal_credentials: '0x010000000000000000000000c00e94cb662c3520282e6f5717214004a7f26888',
-  signature: '0xa0b87d3b9a1373d8097405bfb6f6ee4a237dfcdff6cf8be37932237504c80949409f22666900b3d5518b5f3a42d790960bbabec0221a73857d928a45c2f9913e6dc1f6b6b72a90dd4c8c7320913bedde1b9b6e33b20cd7fa18f5664faf162be4',
-  deposit_data_root: '0x6f776e2ebf8eed5b75896b63ecec56cc31e3ab637530a9c4d041d82a0cf46a7f',
-  value: '32000000000000000000'
-}
-const invalidDataRoot = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+const systemAddress = '0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE'
 
 function joinHex(args) {
   return '0x' + args.map(web3.utils.stripHexPrefix).join('')
@@ -54,6 +33,22 @@ contract('BlockReward', (accounts) => {
   let stake
   let blockReward
   let lens
+  before(async () => {
+    web3.extend({
+      property: 'evm',
+      methods: [{
+        name: 'addAccount',
+        call: 'evm_addAccount',
+        params: 2,
+        inputFormatter: [web3.extend.formatters.inputAddressFormatter, null],
+        outputFormatter: null
+      }]
+    })
+    await web3.evm.addAccount(systemAddress, '')
+    await web3.eth.personal.unlockAccount(systemAddress, '', 10000)
+    await web3.eth.sendTransaction({from: accounts[0], to: systemAddress, value: web3.utils.toWei('10')})
+  })
+
   beforeEach(async () => {
     stake = await PermittableToken.new('Test token', 'TEST', 18, 1337)
     await stake.mint(accounts[0], web3.utils.toWei('1000'))
@@ -86,7 +81,7 @@ contract('BlockReward', (accounts) => {
     expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('35.2'))
 
     // system call to block reward contract, withdrawal of 35.2 meta tokens
-    await blockReward.addBeaconWithdrawals([0], [accounts[0]], [web3.utils.toWei('35.2', 'gwei')])
+    await blockReward.addBeaconWithdrawals([0], [accounts[0]], [web3.utils.toWei('35.2', 'gwei')], { from: systemAddress })
     expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('0'))
 
     // user calls deposit contract to withdraw 35.2 meta tokens and automatically swap them to 1.1 regular tokens
@@ -106,7 +101,7 @@ contract('BlockReward', (accounts) => {
     expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('32'))
 
     // system call to block reward contract, withdrawal of 35.2 meta tokens
-    await blockReward.addBeaconWithdrawals([0], [accounts[0]], [web3.utils.toWei('35.2', 'gwei')])
+    await blockReward.addBeaconWithdrawals([0], [accounts[0]], [web3.utils.toWei('35.2', 'gwei')], { from: systemAddress })
     expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('-3.2'))
 
     // user calls deposit contract to withdraw 35.2 meta tokens
@@ -142,7 +137,7 @@ contract('BlockReward', (accounts) => {
     expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('96'))
 
     // system call to block reward contract, withdrawal of 2 * 35.2 meta tokens
-    await blockReward.addBeaconWithdrawals([0, 1], [accounts[0], accounts[0]], [web3.utils.toWei('35.2', 'gwei'), web3.utils.toWei('35.2', 'gwei')])
+    await blockReward.addBeaconWithdrawals([0, 1], [accounts[0], accounts[0]], [web3.utils.toWei('35.2', 'gwei'), web3.utils.toWei('35.2', 'gwei')], { from: systemAddress })
     expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('25.6'))
 
     // user calls deposit contract to withdraw 2 * 35.2 meta tokens and automatically swap them to 2.2 regular tokens
@@ -161,7 +156,7 @@ contract('BlockReward', (accounts) => {
     await stake.transferAndCall(wrapper.address, web3.utils.toWei('1'), data)
 
     // system call to block reward contract, withdrawal of 32 meta tokens
-    await blockReward.addBeaconWithdrawals([0], [accounts[0]], [web3.utils.toWei('32', 'gwei')])
+    await blockReward.addBeaconWithdrawals([0], [accounts[0]], [web3.utils.toWei('32', 'gwei')], { from: systemAddress })
 
     // user calls deposit contract to withdraw 32 meta tokens on behalf of a different user
     await contract.withdraw([0], accounts[1], '0x', { from: accounts[1] }).should.be.rejected
