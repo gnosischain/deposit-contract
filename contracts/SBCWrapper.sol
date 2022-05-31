@@ -113,6 +113,7 @@ contract SBCWrapper is IERC677Receiver, ISBCWrapper, PausableEIP1967Admin, Claim
 
     /**
      * @dev ERC677 callback for swapping tokens in the simpler way during transferAndCall.
+     * If the received token is the beacon chain deposit token, performs an unwrapping operation instead.
      * @param from address of the received token contract.
      * @param value amount of the received tokens.
      * @param data should be empty for a simple token swap, otherwise will pass it further to the deposit contract.
@@ -145,6 +146,13 @@ contract SBCWrapper is IERC677Receiver, ISBCWrapper, PausableEIP1967Admin, Claim
         return true;
     }
 
+    /**
+     * @dev Unwraps meta token for the underlying collateral.
+     * Tokens must be pre-approved before calling this function.
+     * @param targetToken address of the swapped token contract.
+     * @param receiver address that will receive unlocked collateral.
+     * @param value amount of unwrapped meta tokens.
+     */
     function unwrapTokens(
         address targetToken,
         address receiver,

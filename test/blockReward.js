@@ -76,9 +76,9 @@ contract('BlockReward', (accounts) => {
     await stake.transferAndCall(wrapper.address, web3.utils.toWei('1'), data)
 
     // fill accrued rewards
-    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('32'))
+    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('1'))
     await stake.transfer(wrapper.address, web3.utils.toWei('0.1'))
-    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('35.2'))
+    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('1.1'))
 
     // system call to block reward contract, withdrawal of 35.2 meta tokens
     await blockReward.addBeaconWithdrawals([0], [accounts[0]], [web3.utils.toWei('35.2', 'gwei')], { from: systemAddress })
@@ -98,11 +98,11 @@ contract('BlockReward', (accounts) => {
 
     // deposit 1 token == 32 meta tokens
     await stake.transferAndCall(wrapper.address, web3.utils.toWei('1'), data)
-    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('32'))
+    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('1'))
 
     // system call to block reward contract, withdrawal of 35.2 meta tokens
     await blockReward.addBeaconWithdrawals([0], [accounts[0]], [web3.utils.toWei('35.2', 'gwei')], { from: systemAddress })
-    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('-3.2'))
+    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('-0.1'))
 
     // user calls deposit contract to withdraw 35.2 meta tokens
     await contract.withdraw([0], accounts[1], '0x')
@@ -110,12 +110,12 @@ contract('BlockReward', (accounts) => {
     // user receives 1.1 tokens on the withdrawal address
     expect((await stake.balanceOf(accounts[1])).toString()).to.be.equal(web3.utils.toWei('0'))
     expect((await token.balanceOf(accounts[1])).toString()).to.be.equal(web3.utils.toWei('35.2'))
-    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('-3.2'))
+    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('-0.1'))
 
     await token.approve(wrapper.address, web3.utils.toWei('1000'), { from: accounts[1] })
     await wrapper.unwrapTokens(stake.address, accounts[1], web3.utils.toWei('35.2'), { from: accounts[1] }).should.be.rejected
     await wrapper.unwrapTokens(stake.address, accounts[1], web3.utils.toWei('30'), { from: accounts[1] })
-    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('-3.2'))
+    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('-0.1'))
     await wrapper.unwrapTokens(stake.address, accounts[1], web3.utils.toWei('5.2'), { from: accounts[1] }).should.be.rejected
     await stake.transfer(wrapper.address, web3.utils.toWei('0.1'))
     expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('0'))
@@ -134,11 +134,11 @@ contract('BlockReward', (accounts) => {
     await stake.transferAndCall(wrapper.address, web3.utils.toWei('1'), data)
     await stake.transferAndCall(wrapper.address, web3.utils.toWei('1'), data)
 
-    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('96'))
+    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('3'))
 
     // system call to block reward contract, withdrawal of 2 * 35.2 meta tokens
     await blockReward.addBeaconWithdrawals([0, 1], [accounts[0], accounts[0]], [web3.utils.toWei('35.2', 'gwei'), web3.utils.toWei('35.2', 'gwei')], { from: systemAddress })
-    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('25.6'))
+    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('0.8'))
 
     // user calls deposit contract to withdraw 2 * 35.2 meta tokens and automatically swap them to 2.2 regular tokens
     await contract.withdraw([0, 1], wrapper.address, web3.eth.abi.encodeParameters(['address', 'address'], [stake.address, accounts[1]]))
@@ -146,7 +146,7 @@ contract('BlockReward', (accounts) => {
     // user receives 1.1 tokens on the withdrawal address
     expect((await stake.balanceOf(accounts[1])).toString()).to.be.equal(web3.utils.toWei('2.2'))
     expect((await token.balanceOf(accounts[1])).toString()).to.be.equal(web3.utils.toWei('0'))
-    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('25.6'))
+    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('0.8'))
   })
 
   it('should allow to withdraw for a different address', async () => {
@@ -169,5 +169,41 @@ contract('BlockReward', (accounts) => {
     expect((await token.balanceOf(accounts[0])).toString()).to.be.equal(web3.utils.toWei('0'))
     expect((await token.balanceOf(accounts[1])).toString()).to.be.equal(web3.utils.toWei('32'))
     expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('0'))
+  })
+
+  it('should display correct lens values', async () => {
+    const data = joinHex([deposit.withdrawal_credentials, deposit.pubkey, deposit.signature, deposit.deposit_data_root])
+
+    // deposit 1 token == 32 meta tokens
+    await stake.transferAndCall(wrapper.address, web3.utils.toWei('1'), data)
+    // deposit 1 token == 32 meta tokens
+    await stake.transferAndCall(wrapper.address, web3.utils.toWei('1'), data)
+    // lock 0.5 GNO in exchange for mGNO
+    await stake.transferAndCall(wrapper.address, web3.utils.toWei('0.5'), '0x')
+    // lock 0.5 GNO
+    await stake.transfer(wrapper.address, web3.utils.toWei('0.5'))
+
+    // locked 3 GNO - 16 mGNO in circulation
+    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('2.5'))
+    expect((await lens.totalWithdrawals()).toString()).to.be.equal(web3.utils.toWei('0'))
+    expect((await lens.pendingWithdrawals()).toString()).to.be.equal(web3.utils.toWei('0'))
+
+    // system call to block reward contract, withdrawal of 2 * 35.2 meta tokens
+    await blockReward.addBeaconWithdrawals([0, 1], [accounts[0], accounts[0]], [web3.utils.toWei('35.2', 'gwei'), web3.utils.toWei('35.2', 'gwei')], { from: systemAddress })
+    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('0.3'))
+    expect((await lens.totalWithdrawals()).toString()).to.be.equal(web3.utils.toWei('2.2'))
+    expect((await lens.pendingWithdrawals()).toString()).to.be.equal(web3.utils.toWei('2.2'))
+
+    // user calls deposit contract to withdraw 35.2 meta tokens and automatically swap them to 1.1 regular tokens
+    await contract.withdraw([0], wrapper.address, web3.eth.abi.encodeParameters(['address', 'address'], [stake.address, accounts[1]]))
+    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('0.3'))
+    expect((await lens.totalWithdrawals()).toString()).to.be.equal(web3.utils.toWei('2.2'))
+    expect((await lens.pendingWithdrawals()).toString()).to.be.equal(web3.utils.toWei('1.1'))
+
+    // user calls deposit contract to withdraw 35.2 meta tokens
+    await contract.withdraw([1], accounts[1], '0x')
+    expect((await lens.surplus()).toString()).to.be.equal(web3.utils.toWei('0.3'))
+    expect((await lens.totalWithdrawals()).toString()).to.be.equal(web3.utils.toWei('2.2'))
+    expect((await lens.pendingWithdrawals()).toString()).to.be.equal(web3.utils.toWei('0'))
   })
 })
