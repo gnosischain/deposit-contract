@@ -1,14 +1,12 @@
 require('chai').use(require('chai-as-promised')).should()
 
-const { stakeBytecode } = require('./utils')
-
 const SBCDepositContractProxy = artifacts.require('SBCDepositContractProxy.sol')
 const SBCDepositContract = artifacts.require('SBCDepositContract.sol')
 const SBCWrapperProxy = artifacts.require('SBCWrapperProxy.sol')
 const SBCWrapper = artifacts.require('SBCWrapper.sol')
 const SBCTokenProxy = artifacts.require('SBCTokenProxy.sol')
 const SBCToken = artifacts.require('SBCToken.sol')
-const IERC677 = artifacts.require('IERC677.sol')
+const PermittableToken = artifacts.require('PermittableToken.sol')
 
 const deposit = {
   pubkey: '0x85e52247873439b180471ceb94ef9966c2cef1c194cc926e7d6494fecccbcdc076bcd751309f174dd8b7e21402c85ac0',
@@ -53,8 +51,8 @@ contract('SBCDepositContractProxy', (accounts) => {
   let contract
   let stake
   beforeEach(async () => {
-    IERC677.bytecode = stakeBytecode
-    stake = await IERC677.new()
+    stake = await PermittableToken.new('Test token', 'TEST', 18, 1337)
+    await stake.mint(accounts[0], web3.utils.toWei('1000'))
     tokenProxy = await SBCTokenProxy.new(accounts[0], 'SBC Token', 'SBCT')
     token = await SBCToken.at(tokenProxy.address)
     contractProxy = await SBCDepositContractProxy.new(accounts[0], token.address)
@@ -206,7 +204,8 @@ contract('SBCDepositContractProxy', (accounts) => {
   })
 
   it('should claim tokens', async () => {
-    const otherToken = await IERC677.new()
+    const otherToken = await PermittableToken.new('Other Test token', 'TEST2', 18, 1337)
+    await otherToken.mint(accounts[0], web3.utils.toWei('1000'))
     await token.transfer(contract.address, 1)
     await otherToken.transfer(contract.address, 1)
 

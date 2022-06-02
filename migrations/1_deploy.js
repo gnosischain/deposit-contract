@@ -7,7 +7,7 @@ const SBCWrapper = artifacts.require('SBCWrapper')
 const SBCWrapperProxy = artifacts.require('SBCWrapperProxy')
 
 module.exports = async function (deployer, network, accounts) {
-  if (network !== 'test' && network !== 'soliditycoverage') {
+  if (network !== 'test' && network !== 'soliditycoverage' && network !== 'development') {
     const admin = process.env.ADMIN_ACCOUNT || accounts[0]
 
     const name = 'SBC Token'

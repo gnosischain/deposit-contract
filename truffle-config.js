@@ -1,10 +1,21 @@
 require('dotenv').config()
 const HDWalletProvider = require("@truffle/hdwallet-provider")
+const Ganache = require('ganache')
 
 const privateKey = process.env.DEPLOYMENT_ACCOUNT_PRIVATE_KEY
 
 module.exports = {
   networks: {
+    development: {
+      provider: Ganache.provider({
+        miner: {
+          instamine: 'strict'
+        },
+        gasLimit: 100000000,
+        logger: { log: () => {} },
+      }),
+      network_id: '*',
+    },
     sokol: {
       provider: () => new HDWalletProvider(privateKey, 'https://sokol.poa.network'),
       network_id: 77,
@@ -20,13 +31,12 @@ module.exports = {
   },
   compilers: {
     solc: {
-      version: "0.8.9",
+      version: "pragma",
       settings: {
         optimizer: {
           enabled: true,
           runs: 5000000,
         },
-        evmVersion: "berlin",
       },
     },
   },

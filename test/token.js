@@ -1,12 +1,10 @@
 require('chai').use(require('chai-as-promised')).should()
 
-const { stakeBytecode } = require('./utils')
-
 const SBCWrapperProxy = artifacts.require('SBCWrapperProxy.sol')
 const SBCWrapper = artifacts.require('SBCWrapper.sol')
 const SBCTokenProxy = artifacts.require('SBCTokenProxy.sol')
 const SBCToken = artifacts.require('SBCToken.sol')
-const IERC677 = artifacts.require('IERC677.sol')
+const PermittableToken = artifacts.require('PermittableToken.sol')
 
 const oneEther = web3.utils.toWei('1')
 
@@ -17,8 +15,8 @@ contract('SBCTokenProxy', (accounts) => {
   let wrapper
   let stake
   beforeEach(async () => {
-    IERC677.bytecode = stakeBytecode
-    stake = await IERC677.new()
+    stake = await PermittableToken.new('Test token', 'TEST', 18, 1337)
+    await stake.mint(accounts[0], web3.utils.toWei('1000'))
     tokenProxy = await SBCTokenProxy.new(accounts[0], 'SBC Token', 'SBCT')
     token = await SBCToken.at(tokenProxy.address)
     wrapperProxy = await SBCWrapperProxy.new(accounts[0], token.address, accounts[1])

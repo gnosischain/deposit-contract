@@ -12,8 +12,8 @@ import "./SBCWrapper.sol";
 contract SBCWrapperProxy is EIP1967Proxy {
     constructor(
         address _admin,
-        SBCToken _token,
-        SBCDepositContract _depositContract
+        IMintableBurnableERC677 _token,
+        IDepositContract _depositContract
     ) {
         _setAdmin(_admin);
         _setImplementation(address(new SBCWrapper(_token, _depositContract)));
