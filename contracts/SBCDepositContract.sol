@@ -2,9 +2,11 @@
 
 pragma solidity 0.8.9;
 
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "./interfaces/IDepositContract.sol";
 import "./interfaces/IERC677Receiver.sol";
+import "./interfaces/IUnwrapper.sol";
 import "./utils/PausableEIP1967Admin.sol";
 import "./utils/Claimable.sol";
 
@@ -14,6 +16,8 @@ import "./utils/Claimable.sol";
  * For the original implementation, see the Phase 0 specification under https://github.com/ethereum/eth2.0-specs
  */
 contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, PausableEIP1967Admin, Claimable {
+    using SafeERC20 for IERC20;
+
     uint256 private constant DEPOSIT_CONTRACT_TREE_DEPTH = 32;
     // NOTE: this also ensures `deposit_count` will fit into 64-bits
     uint256 private constant MAX_DEPOSIT_COUNT = 2**DEPOSIT_CONTRACT_TREE_DEPTH - 1;
@@ -27,8 +31,10 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
 
     IERC20 public immutable stake_token;
 
-    constructor(address _token) {
+    constructor(address _token, address _stakeTokenUnwrapper, address _GNOTokenAddress) {
         stake_token = IERC20(_token);
+        stakeTokenUnwrapper = IUnwrapper(_stakeTokenUnwrapper);
+        GNOTokenAddress = IERC20(_GNOTokenAddress);
     }
 
     function get_deposit_root() external view override returns (bytes32) {
@@ -223,5 +229,176 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
         ret[5] = bytesValue[2];
         ret[6] = bytesValue[1];
         ret[7] = bytesValue[0];
+    }
+
+    /*** Withdrawal part ***/
+
+    address private constant SYSTEM_WITHDRAWAL_EXECUTOR = 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE;
+
+    IUnwrapper private immutable stakeTokenUnwrapper;
+    IERC20 private immutable GNOTokenAddress;
+
+    bool public onWithdrawalsUnwrapToGNOByDefault;
+    function setOnWithdrawalsUnwrapToGNOByDefault(bool _onWithdrawalsUnwrapToGNOByDefault) external onlyAdmin {
+        onWithdrawalsUnwrapToGNOByDefault = _onWithdrawalsUnwrapToGNOByDefault;
+    }
+
+    /**
+     * @dev Function to be used to process a withdrawal.
+     * Actually it is an internal function, only this contract can call it.
+     * This is done in order to roll back all changes in case of revert.
+     * @param _amount Amount to be withdrawn.
+     * @param _receiver Receiver of the withdrawal.
+     * @param _unwrapToGNO Indicator of whether tokens should be converted to GNO or not.
+     */
+    function processWithdrawalInternal(
+        uint64 _amount,
+        address _receiver,
+        bool _unwrapToGNO
+    ) external {
+        require(msg.sender == address(this), "Should be used only as an internal call");
+
+        IERC20 tokenToSend = stake_token;
+        uint64 amountToSend = _amount;
+
+        if (_unwrapToGNO) {
+            tokenToSend = GNOTokenAddress;
+            amountToSend = uint64(stakeTokenUnwrapper.unwrap(address(GNOTokenAddress), _amount));
+        }
+
+        tokenToSend.safeTransfer(_receiver, amountToSend);
+    }
+
+    /**
+     * @dev Internal function to be used to process a withdrawal.
+     * Uses processWithdrawalInternal under the hood.
+     * Call to this function will revert only if it ran out of gas.
+     * @param _amount Amount to be withdrawn.
+     * @param _receiver Receiver of the withdrawal.
+     * @param _unwrapToGNO Indicator of whether tokens should be converted to GNO or not.
+     * @return success An indicator of whether the withdrawal was successful or not.
+     */
+    function _processWithdrawal(
+        uint64 _amount,
+        address _receiver,
+        bool _unwrapToGNO
+    ) internal returns (bool success) {
+        try this.processWithdrawalInternal(_amount, _receiver, _unwrapToGNO) {
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    struct FailedWithdrawalRecord {
+        uint64 amount;
+        address receiver;
+        bool executed;
+    }
+    mapping(uint256 => FailedWithdrawalRecord) public failedWithdrawals;
+    uint256 public numberOfFailedWithdrawals;
+
+    /**
+     * @dev Function to be used to process a failed withdrawal (possibly partially).
+     * @param _failedWithdrawalId Id of a failed withdrawal.
+     * @param _amountToProceed Amount of token to withdraw (for the case it is impossible to withdraw the full amount)
+     * (available only for the receiver, will be ignored if other account tries to process the withdrawal).
+     * @param _unwrapToGNO Indicator of whether tokens should be converted to GNO or not
+     * (available only for the receiver, will be ignored if other account tries to process the withdrawal).
+     */
+    function processFailedWithdrawal(
+        uint256 _failedWithdrawalId,
+        uint64 _amountToProceed,
+        bool _unwrapToGNO
+    ) external {
+        require(_failedWithdrawalId < numberOfFailedWithdrawals, "Failed withdrawal do not exist");
+
+        FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[_failedWithdrawalId];
+        require(!failedWithdrawalRecord.executed, "Failed withdrawal already processed");
+
+        uint64 amountToProceed = failedWithdrawalRecord.amount;
+        bool unwrapToGNO = onWithdrawalsUnwrapToGNOByDefault;
+        if (_msgSender() == failedWithdrawalRecord.receiver) {
+            if (_amountToProceed != 0) {
+                amountToProceed = _amountToProceed;
+            }
+            unwrapToGNO = _unwrapToGNO;
+        }
+        require(_amountToProceed <= failedWithdrawalRecord.amount, "Invalid amount of tokens");
+
+        bool success = _processWithdrawal(amountToProceed, failedWithdrawalRecord.receiver, unwrapToGNO);
+        require(success, "Withdrawal processing failed");
+        if (amountToProceed == failedWithdrawalRecord.amount) {
+            failedWithdrawalRecord.executed = true;
+        } else {
+            failedWithdrawalRecord.amount -= amountToProceed;
+        }
+    }
+
+    uint256 public failedWithdrawalsPointer;
+
+    /**
+     * @dev Function to be used to process failed withdrawals.
+     * Call to this function will revert only if it ran out of gas.
+     * Call to this function doesn't transmit flow control to any untrusted contract,
+     * so using constant gas limit and constant max number of withdrawals for calls of this function is ok.
+     * @param _maxNumberOfFailedWithdrawalsToProcess Maximum number of failed withdrawals to be processed.
+     */
+    function processFailedWithdrawalFromPointer(uint256 _maxNumberOfFailedWithdrawalsToProcess) external {
+        for (uint256 i = 0; i < _maxNumberOfFailedWithdrawalsToProcess; ++i) {
+            if (failedWithdrawalsPointer >= numberOfFailedWithdrawals) {
+                break;
+            }
+
+            FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[failedWithdrawalsPointer];
+            if (!failedWithdrawalRecord.executed){
+                bool success = _processWithdrawal(
+                    failedWithdrawalRecord.amount,
+                    failedWithdrawalRecord.receiver,
+                    onWithdrawalsUnwrapToGNOByDefault
+                );
+                if (!success) {
+                    break;
+                }
+                failedWithdrawalRecord.executed = true;
+            }
+
+            ++failedWithdrawalsPointer;
+        }
+    }
+
+    /**
+     * @dev Function to be used only in the system transaction.
+     * Call to this function will revert only in two cases:
+     *     - the length of `_amounts` array is not equal to the length of `_addresses` array;
+     *     - the call ran out of gas.
+     * Call to this function doesn't transmit flow control to any untrusted contract,
+     * so using constant gas limit and constant number of withdrawals for calls of this function is ok.
+     * @param _amounts Array of amounts to be withdrawn.
+     * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
+     */
+    function systemWithdrawalsExecution(
+        uint64[] calldata _amounts,
+        address[] calldata _addresses
+    ) external {
+        require(_msgSender() == SYSTEM_WITHDRAWAL_EXECUTOR, "This function should be called only by SYSTEM_WITHDRAWAL_EXECUTOR");
+        assert(_amounts.length == _addresses.length);
+
+        for (uint256 i = 0; i < _amounts.length; ++i) {
+            bool success = _processWithdrawal(
+                _amounts[i],
+                _addresses[i],
+                onWithdrawalsUnwrapToGNOByDefault
+            );
+
+            if (!success) {
+                failedWithdrawals[numberOfFailedWithdrawals] = FailedWithdrawalRecord({
+                    amount: _amounts[i],
+                    receiver: _addresses[i],
+                    executed: false
+                });
+                ++numberOfFailedWithdrawals;
+            }
+        }
     }
 }

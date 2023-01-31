@@ -16,9 +16,9 @@ contract SBCDepositContractProxy is EIP1967Proxy {
     // first slot from StakeDepositContract
     bytes32[DEPOSIT_CONTRACT_TREE_DEPTH] private zero_hashes;
 
-    constructor(address _admin, address _token) {
+    constructor(address _admin, address _token, address _stakeTokenUnwrapper, address _GNOTokenAddress) {
         _setAdmin(_admin);
-        _setImplementation(address(new SBCDepositContract(_token)));
+        _setImplementation(address(new SBCDepositContract(_token, _stakeTokenUnwrapper, _GNOTokenAddress)));
 
         // Compute hashes in empty sparse Merkle tree
         for (uint256 height = 0; height < DEPOSIT_CONTRACT_TREE_DEPTH - 1; height++)
