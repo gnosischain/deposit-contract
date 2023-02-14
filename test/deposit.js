@@ -245,6 +245,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     expect(mGNOBalanceAfterSecondWithdrawal).to.be.equal(web3.utils.toWei('64'))
     let failedWithdrawalsPointer = (await contract.failedWithdrawalsPointer()).toString()
     expect(failedWithdrawalsPointer).to.be.equal('1')
+    await contract.processFailedWithdrawal(0, 0, 0).should.be.rejected
 
 
     // failed and processed manually
@@ -255,6 +256,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     await token.transfer(contract.address, thirtyTwoEther)
 
     await contract.processFailedWithdrawal(1, 0, 0)
+    await contract.processFailedWithdrawal(1, 0, 0).should.be.rejected
 
     let mGNOBalanceAfterThirdWithdrawal = (await token.balanceOf(accounts[1])).toString()
     expect(mGNOBalanceAfterThirdWithdrawal).to.be.equal(web3.utils.toWei('96'))
@@ -283,6 +285,9 @@ contract('SBCDepositContractProxy', (accounts) => {
 
     mGNOBalanceAfterFourthWithdrawal = (await token.balanceOf(accounts[1])).toString()
     expect(mGNOBalanceAfterFourthWithdrawal).to.be.equal(web3.utils.toWei('128'))
+
+    await contract.processFailedWithdrawal(2, 0, 0).should.be.rejected
+    await contract.processFailedWithdrawal(3, 0, 0).should.be.rejected
   })
 
   it('should correctly withdraw mGNO with convertation to GNO, even with failed withdrawal', async () => {
@@ -311,6 +316,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     expect(GNOBalanceAfterSecondWithdrawal).to.be.equal(web3.utils.toWei('2'))
     let failedWithdrawalsPointer = (await contract.failedWithdrawalsPointer()).toString()
     expect(failedWithdrawalsPointer).to.be.equal('1')
+    await contract.processFailedWithdrawal(0, 0, 0).should.be.rejected
 
 
     // failed and processed manually
@@ -321,6 +327,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     await token.transfer(contract.address, thirtyTwoEther)
 
     await contract.processFailedWithdrawal(1, 0, 0)
+    await contract.processFailedWithdrawal(1, 0, 0).should.be.rejected
 
     let GNOBalanceAfterThirdWithdrawal = (await stake.balanceOf(accounts[1])).toString()
     expect(GNOBalanceAfterThirdWithdrawal).to.be.equal(web3.utils.toWei('3'))
@@ -349,6 +356,9 @@ contract('SBCDepositContractProxy', (accounts) => {
 
     GNOBalanceAfterFourthWithdrawal = (await stake.balanceOf(accounts[1])).toString()
     expect(GNOBalanceAfterFourthWithdrawal).to.be.equal(web3.utils.toWei('4'))
+
+    await contract.processFailedWithdrawal(2, 0, 0).should.be.rejected
+    await contract.processFailedWithdrawal(3, 0, 0).should.be.rejected
   })
 
   it('should claim tokens', async () => {
