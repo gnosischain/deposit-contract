@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "./interfaces/IDepositContract.sol";
 import "./interfaces/IERC677Receiver.sol";
 import "./interfaces/IUnwrapper.sol";
+import "./interfaces/IWithdrawalContract.sol";
 import "./utils/PausableEIP1967Admin.sol";
 import "./utils/Claimable.sol";
 
@@ -15,7 +16,7 @@ import "./utils/Claimable.sol";
  * @dev Implementation of the ERC20 ETH2.0 deposit contract.
  * For the original implementation, see the Phase 0 specification under https://github.com/ethereum/eth2.0-specs
  */
-contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, PausableEIP1967Admin, Claimable {
+contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, PausableEIP1967Admin, Claimable, IWithdrawalContract {
     using SafeERC20 for IERC20;
 
     uint256 private constant DEPOSIT_CONTRACT_TREE_DEPTH = 32;
@@ -252,18 +253,18 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
      * @param _unwrapToGNO Indicator of whether tokens should be converted to GNO or not.
      */
     function processWithdrawalInternal(
-        uint64 _amount,
+        uint256 _amount,
         address _receiver,
         bool _unwrapToGNO
     ) external {
         require(msg.sender == address(this), "Should be used only as an internal call");
 
         IERC20 tokenToSend = stake_token;
-        uint64 amountToSend = _amount;
+        uint256 amountToSend = _amount;
 
         if (_unwrapToGNO) {
             tokenToSend = GNOTokenAddress;
-            amountToSend = uint64(stakeTokenUnwrapper.unwrap(address(GNOTokenAddress), _amount));
+            amountToSend = stakeTokenUnwrapper.unwrap(address(GNOTokenAddress), _amount);
         }
 
         tokenToSend.safeTransfer(_receiver, amountToSend);
@@ -279,7 +280,7 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
      * @return success An indicator of whether the withdrawal was successful or not.
      */
     function _processWithdrawal(
-        uint64 _amount,
+        uint256 _amount,
         address _receiver,
         bool _unwrapToGNO
     ) internal returns (bool success) {
@@ -291,9 +292,9 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
     }
 
     struct FailedWithdrawalRecord {
-        uint64 amount;
+        uint256 amount;
         address receiver;
-        bool executed;
+        bool processed;
     }
     mapping(uint256 => FailedWithdrawalRecord) public failedWithdrawals;
     uint256 public numberOfFailedWithdrawals;
@@ -308,31 +309,32 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
      */
     function processFailedWithdrawal(
         uint256 _failedWithdrawalId,
-        uint64 _amountToProceed,
+        uint256 _amountToProceed,
         bool _unwrapToGNO
     ) external {
         require(_failedWithdrawalId < numberOfFailedWithdrawals, "Failed withdrawal do not exist");
 
         FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[_failedWithdrawalId];
-        require(!failedWithdrawalRecord.executed, "Failed withdrawal already processed");
+        require(!failedWithdrawalRecord.processed, "Failed withdrawal already processed");
 
-        uint64 amountToProceed = failedWithdrawalRecord.amount;
+        uint256 amountToProceed = failedWithdrawalRecord.amount;
         bool unwrapToGNO = onWithdrawalsUnwrapToGNOByDefault;
         if (_msgSender() == failedWithdrawalRecord.receiver) {
             if (_amountToProceed != 0) {
+                require(_amountToProceed <= failedWithdrawalRecord.amount, "Invalid amount of tokens");
                 amountToProceed = _amountToProceed;
             }
             unwrapToGNO = _unwrapToGNO;
         }
-        require(_amountToProceed <= failedWithdrawalRecord.amount, "Invalid amount of tokens");
 
         bool success = _processWithdrawal(amountToProceed, failedWithdrawalRecord.receiver, unwrapToGNO);
         require(success, "Withdrawal processing failed");
         if (amountToProceed == failedWithdrawalRecord.amount) {
-            failedWithdrawalRecord.executed = true;
+            failedWithdrawalRecord.processed = true;
         } else {
             failedWithdrawalRecord.amount -= amountToProceed;
         }
+        emit FailedWithdrawalProcessed(_failedWithdrawalId, amountToProceed, failedWithdrawalRecord.receiver);
     }
 
     uint256 public failedWithdrawalsPointer;
@@ -344,14 +346,14 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
      * so using constant gas limit and constant max number of withdrawals for calls of this function is ok.
      * @param _maxNumberOfFailedWithdrawalsToProcess Maximum number of failed withdrawals to be processed.
      */
-    function processFailedWithdrawalFromPointer(uint256 _maxNumberOfFailedWithdrawalsToProcess) external {
+    function processFailedWithdrawalsFromPointer(uint256 _maxNumberOfFailedWithdrawalsToProcess) external {
         for (uint256 i = 0; i < _maxNumberOfFailedWithdrawalsToProcess; ++i) {
-            if (failedWithdrawalsPointer >= numberOfFailedWithdrawals) {
+            if (failedWithdrawalsPointer == numberOfFailedWithdrawals) {
                 break;
             }
 
             FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[failedWithdrawalsPointer];
-            if (!failedWithdrawalRecord.executed){
+            if (!failedWithdrawalRecord.processed){
                 bool success = _processWithdrawal(
                     failedWithdrawalRecord.amount,
                     failedWithdrawalRecord.receiver,
@@ -360,7 +362,8 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
                 if (!success) {
                     break;
                 }
-                failedWithdrawalRecord.executed = true;
+                failedWithdrawalRecord.processed = true;
+                emit FailedWithdrawalProcessed(failedWithdrawalsPointer, failedWithdrawalRecord.amount, failedWithdrawalRecord.receiver);
             }
 
             ++failedWithdrawalsPointer;
@@ -369,7 +372,8 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
 
     /**
      * @dev Function to be used only in the system transaction.
-     * Call to this function will revert only in two cases:
+     * Call to this function will revert only in three cases:
+     *     - the caller is not `SYSTEM_WITHDRAWAL_EXECUTOR` or `_admin()`;
      *     - the length of `_amounts` array is not equal to the length of `_addresses` array;
      *     - the call ran out of gas.
      * Call to this function doesn't transmit flow control to any untrusted contract,
@@ -381,22 +385,26 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
         uint64[] calldata _amounts,
         address[] calldata _addresses
     ) external {
-        require(_msgSender() == SYSTEM_WITHDRAWAL_EXECUTOR, "This function should be called only by SYSTEM_WITHDRAWAL_EXECUTOR");
+        require(_msgSender() == SYSTEM_WITHDRAWAL_EXECUTOR || _msgSender() == _admin(), "This function should be called only by SYSTEM_WITHDRAWAL_EXECUTOR or _admin()");
         assert(_amounts.length == _addresses.length);
 
         for (uint256 i = 0; i < _amounts.length; ++i) {
+            uint256 amount = uint256(_amounts[i]) * 1 gwei;
             bool success = _processWithdrawal(
-                _amounts[i],
+                amount,
                 _addresses[i],
                 onWithdrawalsUnwrapToGNOByDefault
             );
 
-            if (!success) {
+            if (success) {
+                emit WithdrawalExecuted(amount, _addresses[i]);
+            } else {
                 failedWithdrawals[numberOfFailedWithdrawals] = FailedWithdrawalRecord({
-                    amount: _amounts[i],
+                    amount: amount,
                     receiver: _addresses[i],
-                    executed: false
+                    processed: false
                 });
+                emit WithdrawalFailed(numberOfFailedWithdrawals, amount, _addresses[i]);
                 ++numberOfFailedWithdrawals;
             }
         }

@@ -1,6 +1,7 @@
 require('dotenv').config()
 
 const SBCDepositContractProxy = artifacts.require('SBCDepositContractProxy')
+const SBCDepositContract = artifacts.require('SBCDepositContract')
 const SBCToken = artifacts.require('SBCToken')
 const SBCTokenProxy = artifacts.require('SBCTokenProxy')
 const SBCWrapper = artifacts.require('SBCWrapper')
@@ -19,13 +20,22 @@ module.exports = async function (deployer, network, accounts) {
     const token = await SBCToken.at(tokenProxy.address)
 
     // deploy deposit contract
-    await deployer.deploy(SBCDepositContractProxy, admin, token.address)
+    await deployer.deploy(SBCDepositContractProxy, accounts[0], token.address, process.env.STAKE_TOKEN_ADDRESS, process.env.STAKE_TOKEN_ADDRESS)
     const depositContractProxy = await SBCDepositContractProxy.deployed()
 
     // deploy token wrapper
     await deployer.deploy(SBCWrapperProxy, accounts[0], token.address, depositContractProxy.address)
     const wrapperProxy = await SBCWrapperProxy.deployed()
     const wrapper = await SBCWrapper.at(wrapperProxy.address)
+
+    // upgrade deposit with the correct unwrapper address
+    await deployer.deploy(SBCDepositContract, token.address, wrapperProxy.address, process.env.STAKE_TOKEN_ADDRESS)
+    const depositContractImplementationWithUnwrapper = await SBCDepositContract.deployed()
+    await depositContractProxy.upgradeTo(depositContractImplementationWithUnwrapper.address)
+
+    if (accounts[0].toLowerCase() !== admin.toLowerCase()) {
+      await depositContractProxy.setAdmin(admin)
+    }
 
     // set token minter to deployed wrapper
     await token.setMinter(wrapper.address)

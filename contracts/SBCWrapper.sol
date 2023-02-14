@@ -183,5 +183,7 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
         IERC20(_token).safeTransfer(sender, returned);
 
         emit Unwrap(_token, sender, _amount, returned);
+
+        return returned;
     }
 }
