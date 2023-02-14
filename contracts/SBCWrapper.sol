@@ -169,10 +169,7 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
      * @param _amount Amount of tokens to swap.
      * @return Amount of returned tokens.
      */
-    function unwrap(
-        address _token,
-        uint256 _amount
-    ) external returns (uint256) {
+    function unwrap(address _token, uint256 _amount) external returns (uint256) {
         require(tokenStatus[_token] == TokenStatus.ENABLED, "SBCWrapper: token is not enabled");
 
         address sender = _msgSender();

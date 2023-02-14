@@ -216,9 +216,9 @@ contract('SBCDepositContractProxy', (accounts) => {
     const amounts = ['0x0000000000000000', '0x0000000000000000']
     const elongatedAmounts = ['0x0000000000000000', '0x0000000000000000', '0x0000000000000000']
     const addresses = [accounts[0], accounts[0]]
-    await contract.systemWithdrawalsExecution(amounts, addresses, { from: accounts[1] }).should.be.rejected
-    await contract.systemWithdrawalsExecution(elongatedAmounts, addresses, { from: accounts[0] }).should.be.rejected
-    await contract.systemWithdrawalsExecution(amounts, addresses, { from: accounts[0] })
+    await contract.executeSystemWithdrawals(amounts, addresses, { from: accounts[1] }).should.be.rejected
+    await contract.executeSystemWithdrawals(elongatedAmounts, addresses, { from: accounts[0] }).should.be.rejected
+    await contract.executeSystemWithdrawals(amounts, addresses, { from: accounts[0] })
   })
 
   it('should correctly withdraw mGNO, even with failed withdrawal', async () => {
@@ -228,13 +228,13 @@ contract('SBCDepositContractProxy', (accounts) => {
     // simple withdrawal
     await token.transfer(contract.address, thirtyTwoEther)
 
-    await contract.systemWithdrawalsExecution(amounts, addresses)
+    await contract.executeSystemWithdrawals(amounts, addresses)
     const mGNOBalanceAfterFirstWithdrawal = (await token.balanceOf(accounts[1])).toString()
     expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(thirtyTwoEther)
 
 
     // failed and processed by queue
-    await contract.systemWithdrawalsExecution(amounts, addresses)
+    await contract.executeSystemWithdrawals(amounts, addresses)
     let numberOfFailedWithdrawals = (await contract.numberOfFailedWithdrawals()).toString()
     expect(numberOfFailedWithdrawals).to.be.equal('1')
 
@@ -248,7 +248,7 @@ contract('SBCDepositContractProxy', (accounts) => {
 
 
     // failed and processed manually
-    await contract.systemWithdrawalsExecution(amounts, addresses)
+    await contract.executeSystemWithdrawals(amounts, addresses)
     numberOfFailedWithdrawals = (await contract.numberOfFailedWithdrawals()).toString()
     expect(numberOfFailedWithdrawals).to.be.equal('2')
 
@@ -268,7 +268,7 @@ contract('SBCDepositContractProxy', (accounts) => {
 
 
     // failed and processed partially manually
-    await contract.systemWithdrawalsExecution(amounts, addresses)
+    await contract.executeSystemWithdrawals(amounts, addresses)
     numberOfFailedWithdrawals = (await contract.numberOfFailedWithdrawals()).toString()
     expect(numberOfFailedWithdrawals).to.be.equal('3')
 
@@ -294,13 +294,13 @@ contract('SBCDepositContractProxy', (accounts) => {
     // simple withdrawal
     await token.transfer(contract.address, thirtyTwoEther)
 
-    await contract.systemWithdrawalsExecution(amounts, addresses)
+    await contract.executeSystemWithdrawals(amounts, addresses)
     const GNOBalanceAfterFirstWithdrawal = (await stake.balanceOf(accounts[1])).toString()
     expect(GNOBalanceAfterFirstWithdrawal).to.be.equal(web3.utils.toWei('1'))
 
 
     // failed and processed by queue
-    await contract.systemWithdrawalsExecution(amounts, addresses)
+    await contract.executeSystemWithdrawals(amounts, addresses)
     let numberOfFailedWithdrawals = (await contract.numberOfFailedWithdrawals()).toString()
     expect(numberOfFailedWithdrawals).to.be.equal('1')
 
@@ -314,7 +314,7 @@ contract('SBCDepositContractProxy', (accounts) => {
 
 
     // failed and processed manually
-    await contract.systemWithdrawalsExecution(amounts, addresses)
+    await contract.executeSystemWithdrawals(amounts, addresses)
     numberOfFailedWithdrawals = (await contract.numberOfFailedWithdrawals()).toString()
     expect(numberOfFailedWithdrawals).to.be.equal('2')
 
@@ -334,7 +334,7 @@ contract('SBCDepositContractProxy', (accounts) => {
 
 
     // failed and processed partially manually
-    await contract.systemWithdrawalsExecution(amounts, addresses)
+    await contract.executeSystemWithdrawals(amounts, addresses)
     numberOfFailedWithdrawals = (await contract.numberOfFailedWithdrawals()).toString()
     expect(numberOfFailedWithdrawals).to.be.equal('3')
 

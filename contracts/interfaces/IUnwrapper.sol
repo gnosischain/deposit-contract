@@ -10,8 +10,5 @@ interface IUnwrapper {
      * @param _amount Amount of tokens to swap.
      * @return Amount of returned tokens.
      */
-    function unwrap(
-        address _token,
-        uint256 _amount
-    ) external returns (uint256);
+    function unwrap(address _token, uint256 _amount) external returns (uint256);
 }

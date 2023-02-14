@@ -16,7 +16,12 @@ contract SBCDepositContractProxy is EIP1967Proxy {
     // first slot from StakeDepositContract
     bytes32[DEPOSIT_CONTRACT_TREE_DEPTH] private zero_hashes;
 
-    constructor(address _admin, address _token, address _stakeTokenUnwrapper, address _GNOTokenAddress) {
+    constructor(
+        address _admin,
+        address _token,
+        address _stakeTokenUnwrapper,
+        address _GNOTokenAddress
+    ) {
         _setAdmin(_admin);
         _setImplementation(address(new SBCDepositContract(_token, _stakeTokenUnwrapper, _GNOTokenAddress)));
 

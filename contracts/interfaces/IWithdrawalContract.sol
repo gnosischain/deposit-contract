@@ -14,10 +14,7 @@ interface IWithdrawalContract {
      * @param _amounts Array of amounts to be withdrawn.
      * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
      */
-    function systemWithdrawalsExecution(
-        uint64[] calldata _amounts,
-        address[] calldata _addresses
-    ) external;
+    function executeSystemWithdrawals(uint64[] calldata _amounts, address[] calldata _addresses) external;
 
     /// @notice Executed withdrawal event.
     event WithdrawalExecuted(uint256 _amount, address indexed _address);
@@ -49,5 +46,9 @@ interface IWithdrawalContract {
     ) external;
 
     /// @notice Processed (possibly partially) failed withdrawal event.
-    event FailedWithdrawalProcessed(uint256 indexed _failedWithdrawalId, uint256 _processedAmount, address indexed _address);
+    event FailedWithdrawalProcessed(
+        uint256 indexed _failedWithdrawalId,
+        uint256 _processedAmount,
+        address indexed _address
+    );
 }

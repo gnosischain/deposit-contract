@@ -16,7 +16,14 @@ import "./utils/Claimable.sol";
  * @dev Implementation of the ERC20 ETH2.0 deposit contract.
  * For the original implementation, see the Phase 0 specification under https://github.com/ethereum/eth2.0-specs
  */
-contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, PausableEIP1967Admin, Claimable, IWithdrawalContract {
+contract SBCDepositContract is
+    IDepositContract,
+    IERC165,
+    IERC677Receiver,
+    PausableEIP1967Admin,
+    Claimable,
+    IWithdrawalContract
+{
     using SafeERC20 for IERC20;
 
     uint256 private constant DEPOSIT_CONTRACT_TREE_DEPTH = 32;
@@ -32,7 +39,11 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
 
     IERC20 public immutable stake_token;
 
-    constructor(address _token, address _stakeTokenUnwrapper, address _GNOTokenAddress) {
+    constructor(
+        address _token,
+        address _stakeTokenUnwrapper,
+        address _GNOTokenAddress
+    ) {
         stake_token = IERC20(_token);
         stakeTokenUnwrapper = IUnwrapper(_stakeTokenUnwrapper);
         GNOTokenAddress = IERC20(_GNOTokenAddress);
@@ -240,6 +251,7 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
     IERC20 private immutable GNOTokenAddress;
 
     bool public onWithdrawalsUnwrapToGNOByDefault;
+
     function setOnWithdrawalsUnwrapToGNOByDefault(bool _onWithdrawalsUnwrapToGNOByDefault) external onlyAdmin {
         onWithdrawalsUnwrapToGNOByDefault = _onWithdrawalsUnwrapToGNOByDefault;
     }
@@ -353,7 +365,7 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
             }
 
             FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[failedWithdrawalsPointer];
-            if (!failedWithdrawalRecord.processed){
+            if (!failedWithdrawalRecord.processed) {
                 bool success = _processWithdrawal(
                     failedWithdrawalRecord.amount,
                     failedWithdrawalRecord.receiver,
@@ -363,7 +375,11 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
                     break;
                 }
                 failedWithdrawalRecord.processed = true;
-                emit FailedWithdrawalProcessed(failedWithdrawalsPointer, failedWithdrawalRecord.amount, failedWithdrawalRecord.receiver);
+                emit FailedWithdrawalProcessed(
+                    failedWithdrawalsPointer,
+                    failedWithdrawalRecord.amount,
+                    failedWithdrawalRecord.receiver
+                );
             }
 
             ++failedWithdrawalsPointer;
@@ -381,20 +397,16 @@ contract SBCDepositContract is IDepositContract, IERC165, IERC677Receiver, Pausa
      * @param _amounts Array of amounts to be withdrawn.
      * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
      */
-    function systemWithdrawalsExecution(
-        uint64[] calldata _amounts,
-        address[] calldata _addresses
-    ) external {
-        require(_msgSender() == SYSTEM_WITHDRAWAL_EXECUTOR || _msgSender() == _admin(), "This function should be called only by SYSTEM_WITHDRAWAL_EXECUTOR or _admin()");
+    function executeSystemWithdrawals(uint64[] calldata _amounts, address[] calldata _addresses) external {
+        require(
+            _msgSender() == SYSTEM_WITHDRAWAL_EXECUTOR || _msgSender() == _admin(),
+            "This function should be called only by SYSTEM_WITHDRAWAL_EXECUTOR or _admin()"
+        );
         assert(_amounts.length == _addresses.length);
 
         for (uint256 i = 0; i < _amounts.length; ++i) {
             uint256 amount = uint256(_amounts[i]) * 1 gwei;
-            bool success = _processWithdrawal(
-                amount,
-                _addresses[i],
-                onWithdrawalsUnwrapToGNOByDefault
-            );
+            bool success = _processWithdrawal(amount, _addresses[i], onWithdrawalsUnwrapToGNOByDefault);
 
             if (success) {
                 emit WithdrawalExecuted(amount, _addresses[i]);
