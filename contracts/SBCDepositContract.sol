@@ -311,6 +311,14 @@ contract SBCDepositContract is
     mapping(uint256 => FailedWithdrawalRecord) public failedWithdrawals;
     uint256 public numberOfFailedWithdrawals;
 
+    bool private failedWithdrawalProcessEntered;
+    modifier failedWithdrawalProcessNonReentrant() {
+        require(!failedWithdrawalProcessEntered, "Failed withdrawal processing reentrancy");
+        failedWithdrawalProcessEntered = true;
+        _;
+        failedWithdrawalProcessEntered = false;
+    }
+
     /**
      * @dev Function to be used to process a failed withdrawal (possibly partially).
      * @param _failedWithdrawalId Id of a failed withdrawal.
@@ -323,7 +331,7 @@ contract SBCDepositContract is
         uint256 _failedWithdrawalId,
         uint256 _amountToProceed,
         bool _unwrapToGNO
-    ) external {
+    ) external failedWithdrawalProcessNonReentrant whenNotPaused {
         require(_failedWithdrawalId < numberOfFailedWithdrawals, "Failed withdrawal do not exist");
 
         FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[_failedWithdrawalId];
@@ -358,7 +366,10 @@ contract SBCDepositContract is
      * so using constant gas limit and constant max number of withdrawals for calls of this function is ok.
      * @param _maxNumberOfFailedWithdrawalsToProcess Maximum number of failed withdrawals to be processed.
      */
-    function processFailedWithdrawalsFromPointer(uint256 _maxNumberOfFailedWithdrawalsToProcess) external {
+    function processFailedWithdrawalsFromPointer(uint256 _maxNumberOfFailedWithdrawalsToProcess)
+        public
+        failedWithdrawalProcessNonReentrant
+    {
         for (uint256 i = 0; i < _maxNumberOfFailedWithdrawalsToProcess; ++i) {
             if (failedWithdrawalsPointer == numberOfFailedWithdrawals) {
                 break;
