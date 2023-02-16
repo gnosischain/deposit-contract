@@ -247,6 +247,8 @@ contract SBCDepositContract is
 
     address private constant SYSTEM_WITHDRAWAL_EXECUTOR = 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE;
 
+    uint256 private constant DEFAULT_GAS_PER_WITHDRAWAL = 300000;
+
     IUnwrapper private immutable stakeTokenUnwrapper;
     IERC20 private immutable GNOTokenAddress;
 
@@ -294,9 +296,10 @@ contract SBCDepositContract is
     function _processWithdrawal(
         uint256 _amount,
         address _receiver,
-        bool _unwrapToGNO
+        bool _unwrapToGNO,
+        uint256 gasLimit
     ) internal returns (bool success) {
-        try this.processWithdrawalInternal(_amount, _receiver, _unwrapToGNO) {
+        try this.processWithdrawalInternal{gas: gasLimit}(_amount, _receiver, _unwrapToGNO) {
             return true;
         } catch {
             return false;
@@ -347,7 +350,7 @@ contract SBCDepositContract is
             unwrapToGNO = _unwrapToGNO;
         }
 
-        bool success = _processWithdrawal(amountToProceed, failedWithdrawalRecord.receiver, unwrapToGNO);
+        bool success = _processWithdrawal(amountToProceed, failedWithdrawalRecord.receiver, unwrapToGNO, gasleft());
         require(success, "Withdrawal processing failed");
         if (amountToProceed == failedWithdrawalRecord.amount) {
             failedWithdrawalRecord.processed = true;
@@ -362,7 +365,7 @@ contract SBCDepositContract is
     /**
      * @dev Function to be used to process failed withdrawals.
      * Call to this function will revert only if it ran out of gas.
-     * Call to this function doesn't transmit flow control to any untrusted contract,
+     * Call to this function doesn't transmit flow control to any untrusted contract and uses a constant gas limit for each withdrawal,
      * so using constant gas limit and constant max number of withdrawals for calls of this function is ok.
      * @param _maxNumberOfFailedWithdrawalsToProcess Maximum number of failed withdrawals to be processed.
      */
@@ -380,7 +383,8 @@ contract SBCDepositContract is
                 bool success = _processWithdrawal(
                     failedWithdrawalRecord.amount,
                     failedWithdrawalRecord.receiver,
-                    onWithdrawalsUnwrapToGNOByDefault
+                    onWithdrawalsUnwrapToGNOByDefault,
+                    DEFAULT_GAS_PER_WITHDRAWAL
                 );
                 if (!success) {
                     break;
@@ -403,7 +407,7 @@ contract SBCDepositContract is
      *     - the caller is not `SYSTEM_WITHDRAWAL_EXECUTOR` or `_admin()`;
      *     - the length of `_amounts` array is not equal to the length of `_addresses` array;
      *     - the call ran out of gas.
-     * Call to this function doesn't transmit flow control to any untrusted contract,
+     * Call to this function doesn't transmit flow control to any untrusted contract and uses a constant gas limit for each withdrawal,
      * so using constant gas limit and constant number of withdrawals for calls of this function is ok.
      * @param _amounts Array of amounts to be withdrawn.
      * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
@@ -417,7 +421,12 @@ contract SBCDepositContract is
 
         for (uint256 i = 0; i < _amounts.length; ++i) {
             uint256 amount = uint256(_amounts[i]) * 1 gwei;
-            bool success = _processWithdrawal(amount, _addresses[i], onWithdrawalsUnwrapToGNOByDefault);
+            bool success = _processWithdrawal(
+                amount,
+                _addresses[i],
+                onWithdrawalsUnwrapToGNOByDefault,
+                DEFAULT_GAS_PER_WITHDRAWAL
+            );
 
             if (success) {
                 emit WithdrawalExecuted(amount, _addresses[i]);

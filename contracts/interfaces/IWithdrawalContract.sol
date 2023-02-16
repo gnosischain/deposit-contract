@@ -9,7 +9,7 @@ interface IWithdrawalContract {
      *     - the caller is not `SYSTEM_WITHDRAWAL_EXECUTOR` or `_admin()`;
      *     - the length of `_amounts` array is not equal to the length of `_addresses` array;
      *     - the call ran out of gas.
-     * Call to this function doesn't transmit flow control to any untrusted contract,
+     * Call to this function doesn't transmit flow control to any untrusted contract and uses a constant gas limit for each withdrawal,
      * so using constant gas limit and constant number of withdrawals for calls of this function is ok.
      * @param _amounts Array of amounts to be withdrawn.
      * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
@@ -25,7 +25,7 @@ interface IWithdrawalContract {
     /**
      * @dev Function to be used to process failed withdrawals.
      * Call to this function will revert only if it ran out of gas.
-     * Call to this function doesn't transmit flow control to any untrusted contract,
+     * Call to this function doesn't transmit flow control to any untrusted contract and uses a constant gas limit for each withdrawal,
      * so using constant gas limit and constant max number of withdrawals for calls of this function is ok.
      * @param _maxNumberOfFailedWithdrawalsToProcess Maximum number of failed withdrawals to be processed.
      */
