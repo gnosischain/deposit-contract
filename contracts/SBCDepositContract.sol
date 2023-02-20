@@ -408,16 +408,23 @@ contract SBCDepositContract is
      *     - the length of `_amounts` array is not equal to the length of `_addresses` array;
      *     - the call ran out of gas.
      * Call to this function doesn't transmit flow control to any untrusted contract and uses a constant gas limit for each withdrawal,
-     * so using constant gas limit and constant number of withdrawals for calls of this function is ok.
+     * so using constant gas limit and constant number of withdrawals (including failed withdrawals) for calls of this function is ok.
+     * @param _maxNumberOfFailedWithdrawalsToProcess Maximum number of failed withdrawals to be processed.
      * @param _amounts Array of amounts to be withdrawn.
      * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
      */
-    function executeSystemWithdrawals(uint64[] calldata _amounts, address[] calldata _addresses) external {
+    function executeSystemWithdrawals(
+        uint256 _maxNumberOfFailedWithdrawalsToProcess,
+        uint64[] calldata _amounts,
+        address[] calldata _addresses
+    ) external {
         require(
             _msgSender() == SYSTEM_WITHDRAWAL_EXECUTOR || _msgSender() == _admin(),
             "This function should be called only by SYSTEM_WITHDRAWAL_EXECUTOR or _admin()"
         );
         assert(_amounts.length == _addresses.length);
+
+        processFailedWithdrawalsFromPointer(_maxNumberOfFailedWithdrawalsToProcess);
 
         for (uint256 i = 0; i < _amounts.length; ++i) {
             uint256 amount = uint256(_amounts[i]) * 1 gwei;
