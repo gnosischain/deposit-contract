@@ -364,7 +364,7 @@ contract SBCDepositContract is
 
     /**
      * @dev Function to be used to process failed withdrawals.
-     * Call to this function will revert only if it ran out of gas.
+     * Call to this function will revert only if it ran out of gas or it is a reentrant access to failed withdrawals processing.
      * Call to this function doesn't transmit flow control to any untrusted contract and uses a constant gas limit for each withdrawal,
      * so using constant gas limit and constant max number of withdrawals for calls of this function is ok.
      * @param _maxNumberOfFailedWithdrawalsToProcess Maximum number of failed withdrawals to be processed.
@@ -406,6 +406,7 @@ contract SBCDepositContract is
      * Call to this function will revert only in three cases:
      *     - the caller is not `SYSTEM_WITHDRAWAL_EXECUTOR` or `_admin()`;
      *     - the length of `_amounts` array is not equal to the length of `_addresses` array;
+     *     - it is a reentrant access to failed withdrawals processing;
      *     - the call ran out of gas.
      * Call to this function doesn't transmit flow control to any untrusted contract and uses a constant gas limit for each withdrawal,
      * so using constant gas limit and constant number of withdrawals (including failed withdrawals) for calls of this function is ok.
