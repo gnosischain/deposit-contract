@@ -35,7 +35,7 @@ interface IWithdrawalContract {
      * so using constant gas limit and constant max number of withdrawals for calls of this function is ok.
      * @param _maxNumberOfFailedWithdrawalsToProcess Maximum number of failed withdrawals to be processed.
      */
-    function processFailedWithdrawalsFromPointer(uint256 _maxNumberOfFailedWithdrawalsToProcess) external;
+    function processFailedWithdrawalsFromPointer(uint256 _maxNumberOfFailedWithdrawalsToProcess) external returns (bool);
 
     /**
      * @dev Function to be used to process a failed withdrawal (possibly partially).

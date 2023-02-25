@@ -372,6 +372,7 @@ contract SBCDepositContract is
     function processFailedWithdrawalsFromPointer(uint256 _maxNumberOfFailedWithdrawalsToProcess)
         public
         failedWithdrawalProcessNonReentrant
+        returns (bool success)
     {
         for (uint256 i = 0; i < _maxNumberOfFailedWithdrawalsToProcess; ++i) {
             if (failedWithdrawalsPointer == numberOfFailedWithdrawals) {
@@ -387,7 +388,7 @@ contract SBCDepositContract is
                     DEFAULT_GAS_PER_WITHDRAWAL
                 );
                 if (!success) {
-                    break;
+                    return false;
                 }
                 failedWithdrawalRecord.processed = true;
                 emit FailedWithdrawalProcessed(
@@ -399,6 +400,8 @@ contract SBCDepositContract is
 
             ++failedWithdrawalsPointer;
         }
+
+        return true;
     }
 
     /**
@@ -425,18 +428,24 @@ contract SBCDepositContract is
         );
         assert(_amounts.length == _addresses.length);
 
-        processFailedWithdrawalsFromPointer(_maxNumberOfFailedWithdrawalsToProcess);
+        bool success_all = processFailedWithdrawalsFromPointer(_maxNumberOfFailedWithdrawalsToProcess);
 
         for (uint256 i = 0; i < _amounts.length; ++i) {
             uint256 amount = uint256(_amounts[i]) * 1 gwei;
-            bool success = _processWithdrawal(
-                amount,
-                _addresses[i],
-                onWithdrawalsUnwrapToGNOByDefault,
-                DEFAULT_GAS_PER_WITHDRAWAL
-            );
+            
+            if (success_all) {
+                // Only attempt withdrawal if all previous withdrawals have been successful
+                // _processWithdrawal() may only revert if it doesn't hold enough tokens, but
+                // never for the individual characteristics of a withdrawal item
+                success_all = _processWithdrawal(
+                    amount,
+                    _addresses[i],
+                    onWithdrawalsUnwrapToGNOByDefault,
+                    DEFAULT_GAS_PER_WITHDRAWAL
+                );
+            }
 
-            if (success) {
+            if (success_all) {
                 emit WithdrawalExecuted(amount, _addresses[i]);
             } else {
                 failedWithdrawals[numberOfFailedWithdrawals] = FailedWithdrawalRecord({
