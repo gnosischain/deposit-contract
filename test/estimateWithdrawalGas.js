@@ -43,6 +43,7 @@ contract('estimate withdrawal gas', (accounts) => {
   })
 
   it('estimate gas cost of successful withdrawals', async () => {
+    console.log(formatGasLogHeader())
     await contract.setOnWithdrawalsUnwrapToGNOByDefault(true)
     await fundDepositContract(BigInt(2) ** BigInt(190), "0x")
 
@@ -55,6 +56,7 @@ contract('estimate withdrawal gas', (accounts) => {
   })
 
   it('estimate gas cost of failed withdrawals', async () => {
+    console.log(formatGasLogHeader())
     await contract.setOnWithdrawalsUnwrapToGNOByDefault(true)
 
     for (let n = 1; n <= withdrawalCountUpTo; n = n * 2) {
@@ -98,8 +100,14 @@ contract('estimate withdrawal gas', (accounts) => {
     return {amounts, addresses}
   }
 
+  function formatGasLogHeader() {
+    return `
+| item | count | gasUsed | gas / w |
+| ---- | ----- | ------- | ------- |`
+  }
+
   function formatGasLog(msg, n, tx) {
-    return `${msg} count: ${n} gasUsed: ${tx.receipt.gasUsed} gas/w: ${Math.round(tx.receipt.gasUsed / n)}`
+    return `| ${msg} | ${n} | ${tx.receipt.gasUsed} | ${Math.round(tx.receipt.gasUsed / n)} |`
   }
 })
 
