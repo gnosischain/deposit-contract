@@ -411,4 +411,13 @@ contract SBCDepositContract is
             }
         }
     }
+
+     /**
+     * @dev Allows to unwrap the mGNO in this contract to GNO
+     * Only admin can call this method.
+     * @param _unwrapper address of the mGNO token unwrapper
+     */
+    function unwrapTokens(IUnwrapper _unwrapper, IERC20 _token) external onlyAdmin {
+        _unwrapper.unwrap(address(stake_token), _token.balanceOf(address(this)));
+    }
 }

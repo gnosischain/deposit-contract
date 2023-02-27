@@ -4,6 +4,10 @@ const { stakeBytecode } = require('./utils')
 
 const SBCDepositContractProxy = artifacts.require('SBCDepositContractProxy.sol')
 const SBCDepositContract = artifacts.require('SBCDepositContract.sol')
+const SBCWrapperProxy = artifacts.require('SBCWrapperProxy.sol')
+const SBCWrapper = artifacts.require('SBCWrapper.sol')
+const SBCTokenProxy = artifacts.require('SBCTokenProxy.sol')
+const SBCToken = artifacts.require('SBCToken.sol')
 const IERC677 = artifacts.require('IERC677.sol')
 
 const deposit = {
@@ -44,11 +48,10 @@ const halfDepositAmount = web3.utils.toWei('0.5')
 const depositAmount = web3.utils.toWei('1')
 
 contract('SBCDepositContractProxy', (accounts) => {
-  /*
+  let tokenProxy
+  let token
   let wrapperProxy
   let wrapper
-  */
-
   let contractImplementation
   let contractProxy
   let contract
@@ -56,21 +59,19 @@ contract('SBCDepositContractProxy', (accounts) => {
   beforeEach(async () => {
     IERC677.bytecode = stakeBytecode
     stake = await IERC677.new()
+    tokenProxy = await SBCTokenProxy.new(accounts[0], 'SBC Token', 'SBCT')
+    token = await SBCToken.at(tokenProxy.address)
     contractProxy = await SBCDepositContractProxy.new(accounts[0], stake.address)
     contract = await SBCDepositContract.at(contractProxy.address)
-
-    /*
     wrapperProxy = await SBCWrapperProxy.new(accounts[0], token.address, contract.address)
     wrapper = await SBCWrapper.at(wrapperProxy.address)
-    */
+    await token.setMinter(wrapper.address)
 
     contractImplementation = await SBCDepositContract.new(stake.address)
     await contractProxy.upgradeTo(contractImplementation.address, { from: accounts[0] })
 
-    /*
     await wrapper.enableToken(stake.address, web3.utils.toWei('32'))
-    await stake.transferAndCall(wrapper.address, web3.utils.toWei('100'), '0x')
-    */
+    await stake.transfer(wrapper.address, web3.utils.toWei('100'))
   })
 
   it('should deposit', async () => {
@@ -311,5 +312,12 @@ contract('SBCDepositContractProxy', (accounts) => {
     await contractProxy.setAdmin(accounts[2], { from: accounts[1] }).should.be.rejected
     await contractProxy.setAdmin(accounts[2], { from: accounts[0] })
     expect(await contractProxy.admin()).to.be.equal(accounts[2])
+  })
+
+  it('should unwrap mGNO to GNO', async () => {
+    expect((await stake.balanceOf(contract.address)).toString()).to.be.equal('0')
+    await token.transfer(contract.address, web3.utils.toWei('1344'))
+    await contract.unwrapTokens(wrapper.address, token.address)
+    expect((await stake.balanceOf(contract.address)).toString()).to.be.equal(web3.utils.toWei('42'))
   })
 })
