@@ -9,6 +9,7 @@ const SBCWrapper = artifacts.require('SBCWrapper.sol')
 const SBCTokenProxy = artifacts.require('SBCTokenProxy.sol')
 const SBCToken = artifacts.require('SBCToken.sol')
 const IERC677 = artifacts.require('IERC677.sol')
+const EIP1967UpgradeToAndCall = artifacts.require('EIP1967UpgradeToAndCall.sol')
 
 const deposit = {
   pubkey: '0x85e52247873439b180471ceb94ef9966c2cef1c194cc926e7d6494fecccbcdc076bcd751309f174dd8b7e21402c85ac0',
@@ -318,6 +319,17 @@ contract('SBCDepositContractProxy', (accounts) => {
     expect((await stake.balanceOf(contract.address)).toString()).to.be.equal('0')
     await token.transfer(contract.address, web3.utils.toWei('1344'))
     await contract.unwrapTokens(wrapper.address, token.address)
+    expect((await stake.balanceOf(contract.address)).toString()).to.be.equal(web3.utils.toWei('42'))
+  })
+
+  it.only('should upgrade and unwrap', async () => {
+    const upgradeToAndCall = await EIP1967UpgradeToAndCall.new(contractProxy.address)
+    const impl = await SBCDepositContract.new(stake.address)
+    const unwrapTokensData = impl.contract.methods.unwrapTokens(wrapper.address, token.address).encodeABI()
+
+    await token.transfer(contract.address, web3.utils.toWei('1344'))
+    await upgradeToAndCall.upgradeToAndCall(impl.address, unwrapTokensData)
+    expect(await contractProxy.implementation()).to.be.equal(impl.address)
     expect((await stake.balanceOf(contract.address)).toString()).to.be.equal(web3.utils.toWei('42'))
   })
 })
