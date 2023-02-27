@@ -109,7 +109,7 @@ contract SBCDepositContract is
         uint256 stake_amount_per_deposit = stake_amount;
         if (count > 1) {
             require(count <= 128, "BatchDeposit: You can deposit max 128 validators at a time");
-            require(stake_amount == 1 ether * count, "BatchDeposit: batch deposits require 32 SBC deposit amount");
+            require(stake_amount == 1 ether * count, "BatchDeposit: batch deposits require 1 GNO deposit amount");
             stake_amount_per_deposit = 1 ether;
         }
 
