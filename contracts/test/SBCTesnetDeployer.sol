@@ -56,7 +56,7 @@ contract SBCTesnetDeployer {
         stakeToken.setMinter(address(this));
         stakeToken.mint(address(this), _initialStake);
         stakeToken.approve(address(wrapperProxy), _initialStake);
-        wrapper.swap(address(token), _initialStake, "0x");
+        wrapper.swap(address(stakeToken), _initialStake, "0x");
         token.transfer(address(depositContract), _initialStake);
 
         // Set permissions, is this necessary? Was in the original 1_deploy.js
