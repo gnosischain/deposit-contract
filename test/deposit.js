@@ -46,6 +46,7 @@ function joinHex(args) {
 
 const sixteenEther = web3.utils.toWei('16')
 const thirtyTwoEther = web3.utils.toWei('32')
+const zeroAddress = "0x0000000000000000000000000000000000000000"
 
 contract('SBCDepositContractProxy', (accounts) => {
   let tokenProxy
@@ -374,6 +375,58 @@ contract('SBCDepositContractProxy', (accounts) => {
 
     await contract.processFailedWithdrawal(2, 0, 0).should.be.rejected
     await contract.processFailedWithdrawal(3, 0, 0).should.be.rejected
+  })
+
+  it('should correctly withdraw mGNO with amount = 0', async () => {
+    const amounts = ['0x00'] // 0
+    const addresses = [accounts[1]]
+
+    // simple withdrawal
+    await token.transfer(contract.address, thirtyTwoEther)
+
+    await contract.executeSystemWithdrawals(0, amounts, addresses)
+    const mGNOBalanceAfterWithdrawal = (await token.balanceOf(accounts[1])).toString()
+    expect(mGNOBalanceAfterWithdrawal).to.be.equal(web3.utils.toWei('0'))
+  })
+
+  it('should correctly withdraw GNO with amount = 0', async () => {
+    const amounts = ['0x00'] // 0
+    const addresses = [accounts[1]]
+
+    await contract.setOnWithdrawalsUnwrapToGNOByDefault(true)
+
+    // simple withdrawal
+    await token.transfer(contract.address, thirtyTwoEther)
+
+    await contract.executeSystemWithdrawals(0, amounts, addresses)
+    const mGNOBalanceAfterWithdrawal = (await stake.balanceOf(accounts[1])).toString()
+    expect(mGNOBalanceAfterWithdrawal).to.be.equal(web3.utils.toWei('0'))
+  })
+
+  it('should correctly withdraw mGO to zero address', async () => {
+    const amounts = ['0x0000000773594000'] // 32 * 10^9
+    const addresses = [zeroAddress]
+
+    // simple withdrawal
+    await token.transfer(contract.address, thirtyTwoEther)
+
+    await contract.executeSystemWithdrawals(0, amounts, addresses)
+    const mGNOBalanceAfterFirstWithdrawal = (await token.balanceOf(zeroAddress)).toString()
+    expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(thirtyTwoEther)
+  })
+
+  it('should correctly withdraw GNO to zero address', async () => {
+    const amounts = ['0x0000000773594000'] // 32 * 10^9
+    const addresses = [zeroAddress]
+
+    await contract.setOnWithdrawalsUnwrapToGNOByDefault(true)
+
+    // simple withdrawal
+    await token.transfer(contract.address, thirtyTwoEther)
+
+    await contract.executeSystemWithdrawals(0, amounts, addresses)
+    const mGNOBalanceAfterFirstWithdrawal = (await stake.balanceOf(zeroAddress)).toString()
+    expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(web3.utils.toWei('1'))
   })
 
   it('should claim tokens', async () => {
