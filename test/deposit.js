@@ -384,7 +384,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     // simple withdrawal
     await token.transfer(contract.address, thirtyTwoEther)
 
-    await contract.executeSystemWithdrawals(0, amounts, addresses)
+    assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
     const mGNOBalanceAfterWithdrawal = (await token.balanceOf(accounts[1])).toString()
     expect(mGNOBalanceAfterWithdrawal).to.be.equal(web3.utils.toWei('0'))
   })
@@ -398,7 +398,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     // simple withdrawal
     await token.transfer(contract.address, thirtyTwoEther)
 
-    await contract.executeSystemWithdrawals(0, amounts, addresses)
+    assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
     const mGNOBalanceAfterWithdrawal = (await stake.balanceOf(accounts[1])).toString()
     expect(mGNOBalanceAfterWithdrawal).to.be.equal(web3.utils.toWei('0'))
   })
@@ -410,7 +410,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     // simple withdrawal
     await token.transfer(contract.address, thirtyTwoEther)
 
-    await contract.executeSystemWithdrawals(0, amounts, addresses)
+    assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
     const mGNOBalanceAfterFirstWithdrawal = (await token.balanceOf(zeroAddress)).toString()
     expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(thirtyTwoEther)
   })
@@ -424,7 +424,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     // simple withdrawal
     await token.transfer(contract.address, thirtyTwoEther)
 
-    await contract.executeSystemWithdrawals(0, amounts, addresses)
+    assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
     const mGNOBalanceAfterFirstWithdrawal = (await stake.balanceOf(zeroAddress)).toString()
     expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(web3.utils.toWei('1'))
   })
@@ -453,3 +453,9 @@ contract('SBCDepositContractProxy', (accounts) => {
     expect(await contractProxy.admin()).to.be.equal(accounts[2])
   })
 })
+
+function assertSuccessfulWithdrawal(tx) {
+  const firstEvent = tx.logs[0];
+  if (!firstEvent) throw Error('tx has no events')
+  expect(firstEvent.event).equal('WithdrawalExecuted')
+}
