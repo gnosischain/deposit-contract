@@ -20,16 +20,16 @@ contract SBCTesnetDeployer {
 
     constructor(address _admin, uint256 _initialStake) {
         // deploy stake token, use SBCTokenProxy because it's already available in the repo
-        SBCTokenProxy stakeTokenProxy = new SBCTokenProxy(_admin, "Stake GNO", "GNO");
+        SBCTokenProxy stakeTokenProxy = new SBCTokenProxy(address(this), "Stake GNO", "GNO");
         stakeToken = SBCToken(address(stakeTokenProxy));
 
         // deploy token
-        SBCTokenProxy tokenProxy = new SBCTokenProxy(_admin, "SBC Token", "SBCT");
+        SBCTokenProxy tokenProxy = new SBCTokenProxy(address(this), "SBC Token", "SBCT");
         token = SBCToken(address(tokenProxy));
 
         // deploy deposit contract
         SBCDepositContractProxy depositContractProxy = new SBCDepositContractProxy(
-            _admin,
+            address(this),
             address(tokenProxy),
             address(stakeToken),
             address(stakeToken)
@@ -37,7 +37,7 @@ contract SBCTesnetDeployer {
         depositContract = SBCDepositContract(address(depositContractProxy));
 
         // deploy token wrapper
-        SBCWrapperProxy wrapperProxy = new SBCWrapperProxy(_admin, token, depositContract);
+        SBCWrapperProxy wrapperProxy = new SBCWrapperProxy(address(this), token, depositContract);
         wrapper = SBCWrapper(address(wrapperProxy));
 
         // upgrade deposit with the correct unwrapper address
@@ -60,8 +60,9 @@ contract SBCTesnetDeployer {
         token.transfer(address(depositContract), _initialStake);
 
         // Set permissions, is this necessary? Was in the original 1_deploy.js
-        depositContractProxy.setAdmin(_admin);
+        stakeTokenProxy.setAdmin(_admin);
         tokenProxy.setAdmin(_admin);
+        depositContractProxy.setAdmin(_admin);
         wrapperProxy.setAdmin(_admin);
     }
 
