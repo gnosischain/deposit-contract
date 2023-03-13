@@ -455,7 +455,7 @@ contract('SBCDepositContractProxy', (accounts) => {
 })
 
 function assertSuccessfulWithdrawal(tx) {
-  const firstEvent = tx.logs[0];
-  if (!firstEvent) throw Error('tx has no events')
-  expect(firstEvent.event).equal('WithdrawalExecuted')
+  const withdrawEvent = tx.logs.find(log => log.event.startsWith("Withdrawal"))
+  if (!withdrawEvent) throw Error('tx has no Withdraw* events')
+  expect(withdrawEvent.event).equal('WithdrawalExecuted')
 }
