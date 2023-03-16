@@ -46,6 +46,7 @@ function joinHex(args) {
 
 const sixteenEther = web3.utils.toWei('16')
 const thirtyTwoEther = web3.utils.toWei('32')
+const zeroEther = web3.utils.toWei('0')
 const zeroAddress = "0x0000000000000000000000000000000000000000"
 
 contract('SBCDepositContractProxy', (accounts) => {
@@ -403,7 +404,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     expect(mGNOBalanceAfterWithdrawal).to.be.equal(web3.utils.toWei('0'))
   })
 
-  it('should correctly withdraw mGO to zero address', async () => {
+  it('should correctly drop a withdraw to zero address', async () => {
     const amounts = ['0x0000000773594000'] // 32 * 10^9
     const addresses = [zeroAddress]
 
@@ -412,10 +413,10 @@ contract('SBCDepositContractProxy', (accounts) => {
 
     assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
     const mGNOBalanceAfterFirstWithdrawal = (await token.balanceOf(zeroAddress)).toString()
-    expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(thirtyTwoEther)
+    expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(zeroEther)
   })
 
-  it('should correctly withdraw GNO to zero address', async () => {
+  it('should correctly drop awithdraw GNO to zero address', async () => {
     const amounts = ['0x0000000773594000'] // 32 * 10^9
     const addresses = [zeroAddress]
 
@@ -426,7 +427,7 @@ contract('SBCDepositContractProxy', (accounts) => {
 
     assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
     const mGNOBalanceAfterFirstWithdrawal = (await stake.balanceOf(zeroAddress)).toString()
-    expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(web3.utils.toWei('1'))
+    expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(zeroEther)
   })
 
   it('should claim tokens', async () => {
