@@ -305,11 +305,6 @@ contract SBCDepositContract is
             return true;
         }
 
-        // Skip withdrawal for 0 tokens
-        if (_amount == 0) {
-            return true;
-        }
-
         try this.processWithdrawalInternal{gas: gasLimit}(_amount, _receiver, _unwrapToGNO) {
             return true;
         } catch {
