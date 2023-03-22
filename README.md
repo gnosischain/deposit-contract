@@ -9,6 +9,7 @@ The following things were changed:
 * Contract can be made upgradeable
 * Contract can be made claimable (allowing to claim mistakenly sent third-party tokens back)
 * Contract can be made pausable
+* Withdrawals functionality was added
 
 ## Compiling solidity deposit contract
 

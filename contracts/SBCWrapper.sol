@@ -4,6 +4,7 @@ pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./interfaces/IUnwrapper.sol";
 import "./utils/PausableEIP1967Admin.sol";
 import "./SBCToken.sol";
 import "./SBCDepositContract.sol";
@@ -13,7 +14,7 @@ import "./SBCDepositContract.sol";
  * @dev Wrapper engine contract for minting wrapped tokens that can be deposited into SBC.
  * Used for wrapping of STAKE and other possible ERC20 tokens.
  */
-contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, ReentrancyGuard {
+contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, ReentrancyGuard, IUnwrapper {
     using SafeERC20 for IERC20;
 
     enum TokenStatus {
@@ -33,6 +34,7 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
     event SwapRateUpdated(address indexed token, uint256 rate);
     event TokenSwapEnabled(address indexed token);
     event TokenSwapPaused(address indexed token);
+    event Unwrap(address indexed token, address indexed user, uint256 amount, uint256 received);
 
     constructor(SBCToken _sbcToken, SBCDepositContract _depositContract) {
         sbcToken = _sbcToken;
@@ -158,5 +160,27 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
         emit Swap(_token, _receiver, _amount, acquired);
 
         return acquired;
+    }
+
+    /**
+     * @dev Swaps some of the wrapped tokens to the whitelisted token.
+     * Wrapped tokens will be burned.
+     * @param _token Address of the whitelisted token contract.
+     * @param _amount Amount of tokens to swap.
+     * @return Amount of returned tokens.
+     */
+    function unwrap(address _token, uint256 _amount) external returns (uint256) {
+        require(tokenStatus[_token] == TokenStatus.ENABLED, "SBCWrapper: token is not enabled");
+
+        address sender = _msgSender();
+        sbcToken.burn(sender, _amount);
+
+        uint256 returned = (_amount * 1 ether) / tokenRate[_token];
+
+        IERC20(_token).safeTransfer(sender, returned);
+
+        emit Unwrap(_token, sender, _amount, returned);
+
+        return returned;
     }
 }

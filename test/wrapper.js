@@ -13,6 +13,7 @@ const oneEther = web3.utils.toWei('1')
 const twoEther = web3.utils.toWei('2')
 const threeEther = web3.utils.toWei('3')
 const tenEther = web3.utils.toWei('10')
+const thirtyTwoEther = web3.utils.toWei('32')
 
 contract('SBCWrapperProxy', (accounts) => {
   let tokenProxy
@@ -158,6 +159,46 @@ contract('SBCWrapperProxy', (accounts) => {
 
     expect((await stake.balanceOf(wrapper.address)).toString()).to.be.equal(oneEther)
     expect((await token.balanceOf(accounts[0])).toString()).to.be.equal(oneEther)
+  })
+
+  it('should unwrap only enabled tokens', async () => {
+    expect((await wrapper.tokenStatus(stake.address)).toString()).to.be.equal('1')
+    expect((await wrapper.tokenRate(stake.address)).toString()).to.be.equal(oneEther)
+    expect((await wrapper.tokenStatus(otherToken.address)).toString()).to.be.equal('0')
+    expect((await wrapper.tokenRate(otherToken.address)).toString()).to.be.equal('0')
+
+    {
+      await wrapper.enableToken(stake.address, thirtyTwoEther)
+      expect((await wrapper.tokenStatus(stake.address)).toString()).to.be.equal('1')
+      expect((await wrapper.tokenRate(stake.address)).toString()).to.be.equal(thirtyTwoEther)
+
+      expect((await token.balanceOf(accounts[0])).toString()).to.be.equal('0')
+      const balanceBeforeWrap = parseInt((await stake.balanceOf(accounts[0])).toString())
+      await wrapper.swap(stake.address, oneEther, '0x')
+      expect((await token.balanceOf(accounts[0])).toString()).to.be.equal(thirtyTwoEther)
+      await wrapper.unwrap(stake.address, thirtyTwoEther)
+      const balanceAfterUnwrap = parseInt((await stake.balanceOf(accounts[0])).toString())
+      expect((await token.balanceOf(accounts[0])).toString()).to.be.equal('0')
+      expect(balanceAfterUnwrap).to.be.equal(balanceBeforeWrap)
+    }
+
+
+    await wrapper.unwrap(otherToken.address, oneEther).should.be.rejected
+
+    {
+      await wrapper.enableToken(otherToken.address, tenEther)
+      expect((await wrapper.tokenStatus(otherToken.address)).toString()).to.be.equal('1')
+      expect((await wrapper.tokenRate(otherToken.address)).toString()).to.be.equal(tenEther)
+
+      expect((await token.balanceOf(accounts[0])).toString()).to.be.equal('0')
+      const balanceBeforeWrap = parseInt((await otherToken.balanceOf(accounts[0])).toString())
+      await wrapper.swap(otherToken.address, oneEther, '0x')
+      expect((await token.balanceOf(accounts[0])).toString()).to.be.equal(tenEther)
+      await wrapper.unwrap(otherToken.address, tenEther)
+      const balanceAfterUnwrap = parseInt((await otherToken.balanceOf(accounts[0])).toString())
+      expect((await token.balanceOf(accounts[0])).toString()).to.be.equal('0')
+      expect(balanceAfterUnwrap).to.be.equal(balanceBeforeWrap)
+    }
   })
 
   it('should upgrade', async () => {

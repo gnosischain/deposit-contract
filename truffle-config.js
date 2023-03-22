@@ -12,9 +12,9 @@ module.exports = {
       skipDryRun: true,
     },
     xdai: {
-      provider: () => new HDWalletProvider(privateKey, 'https://dai.poa.network'),
+      provider: () => new HDWalletProvider(privateKey, 'https://rpc.gnosischain.com'),
       network_id: 100,
-      gasPrice: '1000000000',
+      gasPrice: '2000000000',
       skipDryRun: true,
     }
   },
