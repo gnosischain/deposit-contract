@@ -208,7 +208,7 @@ contract('SBCDepositContractProxy', (accounts) => {
   })
 
   it('should correctly withdraw GNO, even with failed withdrawal', async () => {
-    const amounts = ['0x000000003B9ACA00'] // 10^9
+    const amounts = ['0x0000000773594000'] // 32 * 10^9
     const addresses = [accounts[1]]
 
     // simple withdrawal

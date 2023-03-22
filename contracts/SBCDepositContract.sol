@@ -395,7 +395,8 @@ contract SBCDepositContract is
         processFailedWithdrawalsFromPointer(_maxNumberOfFailedWithdrawalsToProcess);
 
         for (uint256 i = 0; i < _amounts.length; ++i) {
-            uint256 amount = uint256(_amounts[i]) * 1 gwei;
+            // Divide stake amount by 32 (1 GNO for validating instead of the 32 ETH expected)
+            uint256 amount = uint256(_amounts[i]) * 1 gwei / 32;
             bool success = _processWithdrawal(amount, _addresses[i], DEFAULT_GAS_PER_WITHDRAWAL);
 
             if (success) {
