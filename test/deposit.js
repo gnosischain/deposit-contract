@@ -9,7 +9,6 @@ const SBCWrapper = artifacts.require('SBCWrapper.sol')
 const SBCTokenProxy = artifacts.require('SBCTokenProxy.sol')
 const SBCToken = artifacts.require('SBCToken.sol')
 const IERC677 = artifacts.require('IERC677.sol')
-const EIP1967UpgradeToAndCall = artifacts.require('EIP1967UpgradeToAndCall.sol')
 
 const deposit = {
   pubkey: '0x85e52247873439b180471ceb94ef9966c2cef1c194cc926e7d6494fecccbcdc076bcd751309f174dd8b7e21402c85ac0',
