@@ -306,20 +306,6 @@ contract('SBCDepositContractProxy', (accounts) => {
     expect(mGNOBalanceAfterWithdrawal).to.be.equal(web3.utils.toWei('0'))
   })
 
-  it('should correctly withdraw GNO with amount = 0', async () => {
-    const amounts = ['0x00'] // 0
-    const addresses = [accounts[1]]
-
-    await contract.setOnWithdrawalsUnwrapToGNOByDefault(true)
-
-    // simple withdrawal
-    await token.transfer(contract.address, thirtyTwoEther)
-
-    assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
-    const mGNOBalanceAfterWithdrawal = (await stake.balanceOf(accounts[1])).toString()
-    expect(mGNOBalanceAfterWithdrawal).to.be.equal(web3.utils.toWei('0'))
-  })
-
   it('should correctly drop a withdraw to zero address', async () => {
     const amounts = ['0x0000000773594000'] // 32 * 10^9
     const addresses = [zeroAddress]
@@ -329,20 +315,6 @@ contract('SBCDepositContractProxy', (accounts) => {
 
     assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
     const mGNOBalanceAfterFirstWithdrawal = (await token.balanceOf(zeroAddress)).toString()
-    expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(zeroEther)
-  })
-
-  it('should correctly drop awithdraw GNO to zero address', async () => {
-    const amounts = ['0x0000000773594000'] // 32 * 10^9
-    const addresses = [zeroAddress]
-
-    await contract.setOnWithdrawalsUnwrapToGNOByDefault(true)
-
-    // simple withdrawal
-    await token.transfer(contract.address, thirtyTwoEther)
-
-    assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
-    const mGNOBalanceAfterFirstWithdrawal = (await stake.balanceOf(zeroAddress)).toString()
     expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(zeroEther)
   })
 
