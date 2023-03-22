@@ -271,6 +271,12 @@ contract SBCDepositContract is
         address _receiver,
         uint256 gasLimit
     ) internal returns (bool success) {
+        // Skip withdrawal that burns tokens to avoid a revert condition
+        // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/dad73159df3d3053c72b5e430fa8164330f18068/contracts/token/ERC20/ERC20.sol#L278
+        if (_receiver == address(0)) {
+            return true;
+        }
+
         try this.processWithdrawalInternal{gas: gasLimit}(_amount, _receiver) {
             return true;
         } catch {

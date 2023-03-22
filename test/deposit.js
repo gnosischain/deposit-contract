@@ -47,6 +47,10 @@ function joinHex(args) {
 
 const halfDepositAmount = web3.utils.toWei('0.5')
 const depositAmount = web3.utils.toWei('1')
+const sixteenEther = web3.utils.toWei('16')
+const thirtyTwoEther = web3.utils.toWei('32')
+const zeroEther = web3.utils.toWei('0')
+const zeroAddress = "0x0000000000000000000000000000000000000000"
 
 contract('SBCDepositContractProxy', (accounts) => {
   let tokenProxy
@@ -291,6 +295,58 @@ contract('SBCDepositContractProxy', (accounts) => {
     await contract.processFailedWithdrawal(4, 0).should.be.rejected
   })
 
+  it('should correctly withdraw mGNO with amount = 0', async () => {
+    const amounts = ['0x00'] // 0
+    const addresses = [accounts[1]]
+
+    // simple withdrawal
+    await token.transfer(contract.address, thirtyTwoEther)
+
+    assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
+    const mGNOBalanceAfterWithdrawal = (await token.balanceOf(accounts[1])).toString()
+    expect(mGNOBalanceAfterWithdrawal).to.be.equal(web3.utils.toWei('0'))
+  })
+
+  it('should correctly withdraw GNO with amount = 0', async () => {
+    const amounts = ['0x00'] // 0
+    const addresses = [accounts[1]]
+
+    await contract.setOnWithdrawalsUnwrapToGNOByDefault(true)
+
+    // simple withdrawal
+    await token.transfer(contract.address, thirtyTwoEther)
+
+    assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
+    const mGNOBalanceAfterWithdrawal = (await stake.balanceOf(accounts[1])).toString()
+    expect(mGNOBalanceAfterWithdrawal).to.be.equal(web3.utils.toWei('0'))
+  })
+
+  it('should correctly drop a withdraw to zero address', async () => {
+    const amounts = ['0x0000000773594000'] // 32 * 10^9
+    const addresses = [zeroAddress]
+
+    // simple withdrawal
+    await token.transfer(contract.address, thirtyTwoEther)
+
+    assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
+    const mGNOBalanceAfterFirstWithdrawal = (await token.balanceOf(zeroAddress)).toString()
+    expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(zeroEther)
+  })
+
+  it('should correctly drop awithdraw GNO to zero address', async () => {
+    const amounts = ['0x0000000773594000'] // 32 * 10^9
+    const addresses = [zeroAddress]
+
+    await contract.setOnWithdrawalsUnwrapToGNOByDefault(true)
+
+    // simple withdrawal
+    await token.transfer(contract.address, thirtyTwoEther)
+
+    assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
+    const mGNOBalanceAfterFirstWithdrawal = (await stake.balanceOf(zeroAddress)).toString()
+    expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(zeroEther)
+  })
+
   it('should claim tokens', async () => {
     const otherToken = await IERC677.new()
     await stake.transfer(contract.address, 1)
@@ -333,3 +389,9 @@ contract('SBCDepositContractProxy', (accounts) => {
     expect((await stake.balanceOf(contract.address)).toString()).to.be.equal(web3.utils.toWei('42'))
   })
 })
+
+function assertSuccessfulWithdrawal(tx) {
+  const withdrawEvent = tx.logs.find(log => log.event.startsWith("Withdrawal"))
+  if (!withdrawEvent) throw Error('tx has no Withdraw* events')
+  expect(withdrawEvent.event).equal('WithdrawalExecuted')
+}
