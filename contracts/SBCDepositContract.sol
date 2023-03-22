@@ -39,14 +39,8 @@ contract SBCDepositContract is
 
     IERC20 public immutable stake_token;
 
-    constructor(
-        address _token,
-        address _stakeTokenUnwrapper,
-        address _GNOTokenAddress
-    ) {
+    constructor(address _token) {
         stake_token = IERC20(_token);
-        stakeTokenUnwrapper = IUnwrapper(_stakeTokenUnwrapper);
-        GNOTokenAddress = IERC20(_GNOTokenAddress);
     }
 
     function get_deposit_root() external view override returns (bytes32) {
@@ -92,7 +86,7 @@ contract SBCDepositContract is
         require(signatures.length == count * 96, "BatchDeposit: Signatures count don't match");
         require(withdrawal_credentials.length == 32, "BatchDeposit: Withdrawal Credentials count don't match");
 
-        uint256 stake_amount = 32 ether;
+        uint256 stake_amount = 1 ether;
         stake_token.transferFrom(msg.sender, address(this), stake_amount * count);
 
         for (uint256 i = 0; i < count; ++i) {
@@ -115,8 +109,8 @@ contract SBCDepositContract is
         uint256 stake_amount_per_deposit = stake_amount;
         if (count > 1) {
             require(count <= 128, "BatchDeposit: You can deposit max 128 validators at a time");
-            require(stake_amount == 32 ether * count, "BatchDeposit: batch deposits require 32 SBC deposit amount");
-            stake_amount_per_deposit = 32 ether;
+            require(stake_amount == 1 ether * count, "BatchDeposit: batch deposits require 1 GNO deposit amount");
+            stake_amount_per_deposit = 1 ether;
         }
 
         bytes memory withdrawal_credentials = data[0:32];
@@ -136,6 +130,9 @@ contract SBCDepositContract is
         bytes32 deposit_data_root,
         uint256 stake_amount
     ) internal {
+        // Multiply stake amount by 32 (1 GNO for validating instead of the 32 ETH expected)
+        stake_amount = 32 * stake_amount;
+
         // Extended ABI length checks since dynamic types are used.
         require(pubkey.length == 48, "DepositContract: invalid pubkey length");
         require(withdrawal_credentials.length == 32, "DepositContract: invalid withdrawal_credentials length");
@@ -249,39 +246,16 @@ contract SBCDepositContract is
 
     uint256 private constant DEFAULT_GAS_PER_WITHDRAWAL = 300000;
 
-    IUnwrapper private immutable stakeTokenUnwrapper;
-    IERC20 private immutable GNOTokenAddress;
-
-    bool public onWithdrawalsUnwrapToGNOByDefault;
-
-    function setOnWithdrawalsUnwrapToGNOByDefault(bool _onWithdrawalsUnwrapToGNOByDefault) external onlyAdmin {
-        onWithdrawalsUnwrapToGNOByDefault = _onWithdrawalsUnwrapToGNOByDefault;
-    }
-
     /**
      * @dev Function to be used to process a withdrawal.
      * Actually it is an internal function, only this contract can call it.
      * This is done in order to roll back all changes in case of revert.
      * @param _amount Amount to be withdrawn.
      * @param _receiver Receiver of the withdrawal.
-     * @param _unwrapToGNO Indicator of whether tokens should be converted to GNO or not.
      */
-    function processWithdrawalInternal(
-        uint256 _amount,
-        address _receiver,
-        bool _unwrapToGNO
-    ) external {
+    function processWithdrawalInternal(uint256 _amount, address _receiver) external {
         require(msg.sender == address(this), "Should be used only as an internal call");
-
-        IERC20 tokenToSend = stake_token;
-        uint256 amountToSend = _amount;
-
-        if (_unwrapToGNO) {
-            tokenToSend = GNOTokenAddress;
-            amountToSend = stakeTokenUnwrapper.unwrap(address(GNOTokenAddress), _amount);
-        }
-
-        tokenToSend.safeTransfer(_receiver, amountToSend);
+        stake_token.safeTransfer(_receiver, _amount);
     }
 
     /**
@@ -290,13 +264,11 @@ contract SBCDepositContract is
      * Call to this function will revert only if it ran out of gas.
      * @param _amount Amount to be withdrawn.
      * @param _receiver Receiver of the withdrawal.
-     * @param _unwrapToGNO Indicator of whether tokens should be converted to GNO or not.
      * @return success An indicator of whether the withdrawal was successful or not.
      */
     function _processWithdrawal(
         uint256 _amount,
         address _receiver,
-        bool _unwrapToGNO,
         uint256 gasLimit
     ) internal returns (bool success) {
         // Skip withdrawal that burns tokens to avoid a revert condition
@@ -305,7 +277,7 @@ contract SBCDepositContract is
             return true;
         }
 
-        try this.processWithdrawalInternal{gas: gasLimit}(_amount, _receiver, _unwrapToGNO) {
+        try this.processWithdrawalInternal{gas: gasLimit}(_amount, _receiver) {
             return true;
         } catch {
             return false;
@@ -333,30 +305,26 @@ contract SBCDepositContract is
      * @param _failedWithdrawalId Id of a failed withdrawal.
      * @param _amountToProceed Amount of token to withdraw (for the case it is impossible to withdraw the full amount)
      * (available only for the receiver, will be ignored if other account tries to process the withdrawal).
-     * @param _unwrapToGNO Indicator of whether tokens should be converted to GNO or not
-     * (available only for the receiver, will be ignored if other account tries to process the withdrawal).
      */
-    function processFailedWithdrawal(
-        uint256 _failedWithdrawalId,
-        uint256 _amountToProceed,
-        bool _unwrapToGNO
-    ) external failedWithdrawalProcessNonReentrant whenNotPaused {
+    function processFailedWithdrawal(uint256 _failedWithdrawalId, uint256 _amountToProceed)
+        external
+        failedWithdrawalProcessNonReentrant
+        whenNotPaused
+    {
         require(_failedWithdrawalId < numberOfFailedWithdrawals, "Failed withdrawal do not exist");
 
         FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[_failedWithdrawalId];
         require(!failedWithdrawalRecord.processed, "Failed withdrawal already processed");
 
         uint256 amountToProceed = failedWithdrawalRecord.amount;
-        bool unwrapToGNO = onWithdrawalsUnwrapToGNOByDefault;
         if (_msgSender() == failedWithdrawalRecord.receiver) {
             if (_amountToProceed != 0) {
                 require(_amountToProceed <= failedWithdrawalRecord.amount, "Invalid amount of tokens");
                 amountToProceed = _amountToProceed;
             }
-            unwrapToGNO = _unwrapToGNO;
         }
 
-        bool success = _processWithdrawal(amountToProceed, failedWithdrawalRecord.receiver, unwrapToGNO, gasleft());
+        bool success = _processWithdrawal(amountToProceed, failedWithdrawalRecord.receiver, gasleft());
         require(success, "Withdrawal processing failed");
         if (amountToProceed == failedWithdrawalRecord.amount) {
             failedWithdrawalRecord.processed = true;
@@ -389,7 +357,6 @@ contract SBCDepositContract is
                 bool success = _processWithdrawal(
                     failedWithdrawalRecord.amount,
                     failedWithdrawalRecord.receiver,
-                    onWithdrawalsUnwrapToGNOByDefault,
                     DEFAULT_GAS_PER_WITHDRAWAL
                 );
                 if (!success) {
@@ -434,13 +401,9 @@ contract SBCDepositContract is
         processFailedWithdrawalsFromPointer(_maxNumberOfFailedWithdrawalsToProcess);
 
         for (uint256 i = 0; i < _amounts.length; ++i) {
-            uint256 amount = uint256(_amounts[i]) * 1 gwei;
-            bool success = _processWithdrawal(
-                amount,
-                _addresses[i],
-                onWithdrawalsUnwrapToGNOByDefault,
-                DEFAULT_GAS_PER_WITHDRAWAL
-            );
+            // Divide stake amount by 32 (1 GNO for validating instead of the 32 ETH expected)
+            uint256 amount = uint256(_amounts[i]) * 1 gwei / 32;
+            bool success = _processWithdrawal(amount, _addresses[i], DEFAULT_GAS_PER_WITHDRAWAL);
 
             if (success) {
                 emit WithdrawalExecuted(amount, _addresses[i]);
@@ -454,5 +417,14 @@ contract SBCDepositContract is
                 ++numberOfFailedWithdrawals;
             }
         }
+    }
+
+     /**
+     * @dev Allows to unwrap the mGNO in this contract to GNO
+     * Only admin can call this method.
+     * @param _unwrapper address of the mGNO token unwrapper
+     */
+    function unwrapTokens(IUnwrapper _unwrapper, IERC20 _token) external onlyAdmin {
+        _unwrapper.unwrap(address(stake_token), _token.balanceOf(address(this)));
     }
 }

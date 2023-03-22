@@ -42,14 +42,8 @@ interface IWithdrawalContract {
      * @param _failedWithdrawalId Id of a failed withdrawal.
      * @param _amountToProceed Amount of token to withdraw (for the case it is impossible to withdraw the full amount)
      * (available only for the receiver, will be ignored if other account tries to process the withdrawal).
-     * @param _unwrapToGNO Indicator of whether tokens should be converted to GNO or not
-     * (available only for the receiver, will be ignored if other account tries to process the withdrawal).
      */
-    function processFailedWithdrawal(
-        uint256 _failedWithdrawalId,
-        uint256 _amountToProceed,
-        bool _unwrapToGNO
-    ) external;
+    function processFailedWithdrawal(uint256 _failedWithdrawalId, uint256 _amountToProceed) external;
 
     /// @notice Processed (possibly partially) failed withdrawal event.
     event FailedWithdrawalProcessed(
