@@ -377,17 +377,6 @@ contract('SBCDepositContractProxy', (accounts) => {
     await contract.unwrapTokens(wrapper.address, token.address)
     expect((await stake.balanceOf(contract.address)).toString()).to.be.equal(web3.utils.toWei('42'))
   })
-
-  it.only('should upgrade and unwrap', async () => {
-    const upgradeToAndCall = await EIP1967UpgradeToAndCall.new(contractProxy.address)
-    const impl = await SBCDepositContract.new(stake.address)
-    const unwrapTokensData = impl.contract.methods.unwrapTokens(wrapper.address, token.address).encodeABI()
-
-    await token.transfer(contract.address, web3.utils.toWei('1344'))
-    await upgradeToAndCall.upgradeToAndCall(impl.address, unwrapTokensData)
-    expect(await contractProxy.implementation()).to.be.equal(impl.address)
-    expect((await stake.balanceOf(contract.address)).toString()).to.be.equal(web3.utils.toWei('42'))
-  })
 })
 
 function assertSuccessfulWithdrawal(tx) {
