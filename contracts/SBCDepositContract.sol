@@ -144,18 +144,6 @@ contract SBCDepositContract is
         uint256 deposit_amount = stake_amount / 1 gwei;
         require(deposit_amount <= type(uint64).max, "DepositContract: deposit value too high");
 
-        // Don't allow to use different withdrawal credentials for subsequent deposits
-        bytes32 saved_wc = validator_withdrawal_credentials[pubkey];
-        bytes32 wc;
-        assembly {
-            wc := mload(add(withdrawal_credentials, 32))
-        }
-        if (saved_wc == bytes32(0)) {
-            validator_withdrawal_credentials[pubkey] = wc;
-        } else {
-            require(saved_wc == wc, "DepositContract: invalid withdrawal_credentials");
-        }
-
         // Emit `DepositEvent` log
         bytes memory amount = to_little_endian_64(uint64(deposit_amount));
         emit DepositEvent(

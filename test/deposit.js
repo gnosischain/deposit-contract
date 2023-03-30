@@ -181,8 +181,8 @@ contract('SBCDepositContractProxy', (accounts) => {
     expect((await stake.balanceOf(contract.address)).toString()).to.be.equal('1000000000000000000')
   })
 
-  it('should not accept other withdrawal credentials', async () => {
-    await stake.approve(contract.address, '3000000000000000000')
+  it('should accept other withdrawal credentials', async () => {
+    await stake.approve(contract.address, '6000000000000000000')
     for (let i = 0; i < 2; i++) {
       await contract.deposit(
         depositWC1.pubkey,
@@ -197,7 +197,7 @@ contract('SBCDepositContractProxy', (accounts) => {
         depositWC2.signature,
         depositWC2.deposit_data_root,
         depositWC2.value
-      ).should.be.rejected
+      )
     }
   })
 
