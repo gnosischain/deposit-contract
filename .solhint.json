@@ -10,7 +10,7 @@
     "avoid-low-level-calls": "off",
     "no-empty-blocks": "off",
     "func-visibility": ["warn", {"ignoreConstructors": true}],
-    "prettier/prettier": "error",
+    "prettier/prettier": "warn",
     "compiler-version": ["error", "0.8.9"]
   }
 }

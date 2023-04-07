@@ -56,11 +56,7 @@ contract SBCToken is IERC677, ERC20Pausable, PausableEIP1967Admin, Claimable {
      * @param _amount amount of sent tokens.
      * @param _data extra data to pass to the callback function.
      */
-    function transferAndCall(
-        address _to,
-        uint256 _amount,
-        bytes calldata _data
-    ) external override {
+    function transferAndCall(address _to, uint256 _amount, bytes calldata _data) external override {
         address sender = _msgSender();
         _transfer(sender, _to, _amount);
         require(IERC677Receiver(_to).onTokenTransfer(sender, _amount, _data), "SBCToken: ERC677 callback failed");
