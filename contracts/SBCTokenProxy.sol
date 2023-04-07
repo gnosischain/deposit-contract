@@ -19,11 +19,7 @@ contract SBCTokenProxy is EIP1967Proxy {
     string private _name;
     string private _symbol;
 
-    constructor(
-        address _admin,
-        string memory name,
-        string memory symbol
-    ) {
+    constructor(address _admin, string memory name, string memory symbol) {
         _setAdmin(_admin);
         _setImplementation(address(new SBCToken()));
         _name = name;

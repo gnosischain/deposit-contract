@@ -80,11 +80,7 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
      * @param _permitData optional permit calldata to use for preliminary token approval.
      * supports STAKE permit and EIP2612 standards.
      */
-    function swap(
-        address _token,
-        uint256 _amount,
-        bytes calldata _permitData
-    ) external nonReentrant whenNotPaused {
+    function swap(address _token, uint256 _amount, bytes calldata _permitData) external nonReentrant whenNotPaused {
         require(tokenStatus[_token] == TokenStatus.ENABLED, "SBCWrapper: token is not enabled");
 
         if (_permitData.length > 4) {
@@ -147,11 +143,7 @@ contract SBCWrapper is IERC677Receiver, PausableEIP1967Admin, Claimable, Reentra
         _claimValues(_token, _to);
     }
 
-    function _swapTokens(
-        address _receiver,
-        address _token,
-        uint256 _amount
-    ) internal returns (uint256) {
+    function _swapTokens(address _receiver, address _token, uint256 _amount) internal returns (uint256) {
         uint256 acquired = (_amount * tokenRate[_token]) / 1 ether;
         require(acquired > 0, "SBCWrapper: invalid amount");
 
