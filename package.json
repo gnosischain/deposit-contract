@@ -12,7 +12,8 @@
     "coverage": "truffle run coverage",
     "deploy-xdai": "truffle migrate --network xdai",
     "deploy-sokol": "truffle migrate --network sokol",
-    "lint": "solhint --max-warnings 0 \"contracts/**/*.sol\""
+    "lint": "solhint --max-warnings 0 \"contracts/**/*.sol\"",
+    "compute-genesis-bytecode": "truffle compile && truffle exec scripts/compute_genesis_bytecodes.js --network xdai_ro"
   },
   "prettier": {
     "printWidth": 120
