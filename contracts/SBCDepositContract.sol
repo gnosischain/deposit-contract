@@ -335,12 +335,17 @@ contract SBCDepositContract is
         public
         failedWithdrawalProcessNonReentrant
     {
+        // Cache storage
+        mapping(uint256 => FailedWithdrawalRecord) storage withdrawals = failedWithdrawals;
+        uint256 pointer = failedWithdrawalsPointer;
+        uint256 failedCount = numberOfFailedWithdrawals;
+
         for (uint256 i = 0; i < _maxNumberOfFailedWithdrawalsToProcess; ++i) {
-            if (failedWithdrawalsPointer == numberOfFailedWithdrawals) {
+            if (pointer == failedCount) {
                 break;
             }
 
-            FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[failedWithdrawalsPointer];
+            FailedWithdrawalRecord storage failedWithdrawalRecord = withdrawals[pointer];
             if (!failedWithdrawalRecord.processed) {
                 bool success = _processWithdrawal(
                     failedWithdrawalRecord.amount,
@@ -351,15 +356,13 @@ contract SBCDepositContract is
                     break;
                 }
                 failedWithdrawalRecord.processed = true;
-                emit FailedWithdrawalProcessed(
-                    failedWithdrawalsPointer,
-                    failedWithdrawalRecord.amount,
-                    failedWithdrawalRecord.receiver
-                );
+                emit FailedWithdrawalProcessed(pointer, failedWithdrawalRecord.amount, failedWithdrawalRecord.receiver);
             }
 
-            ++failedWithdrawalsPointer;
+            ++pointer;
         }
+
+        failedWithdrawalsPointer = pointer;
     }
 
     /**
@@ -384,27 +387,37 @@ contract SBCDepositContract is
             _msgSender() == SYSTEM_WITHDRAWAL_EXECUTOR || _msgSender() == _admin(),
             "This function should be called only by SYSTEM_WITHDRAWAL_EXECUTOR or _admin()"
         );
-        assert(_amounts.length == _addresses.length);
+
+        // Cache calldata
+        address[] memory addresses = _addresses;
+        uint64[] memory amounts = _amounts;
+
+        // Cache storage
+        uint256 failedCount = numberOfFailedWithdrawals;
+
+        assert(amounts.length == addresses.length);
 
         processFailedWithdrawalsFromPointer(_maxNumberOfFailedWithdrawalsToProcess);
 
-        for (uint256 i = 0; i < _amounts.length; ++i) {
+        for (uint256 i = 0; i < amounts.length; ++i) {
             // Divide stake amount by 32 (1 GNO for validating instead of the 32 ETH expected)
-            uint256 amount = (uint256(_amounts[i]) * 1 gwei) / 32;
-            bool success = _processWithdrawal(amount, _addresses[i], DEFAULT_GAS_PER_WITHDRAWAL);
+            uint256 amount = (uint256(amounts[i]) * 1 gwei) / 32;
+            bool success = _processWithdrawal(amount, addresses[i], DEFAULT_GAS_PER_WITHDRAWAL);
 
             if (success) {
-                emit WithdrawalExecuted(amount, _addresses[i]);
+                emit WithdrawalExecuted(amount, addresses[i]);
             } else {
-                failedWithdrawals[numberOfFailedWithdrawals] = FailedWithdrawalRecord({
+                failedWithdrawals[failedCount] = FailedWithdrawalRecord({
                     amount: amount,
-                    receiver: _addresses[i],
+                    receiver: addresses[i],
                     processed: false
                 });
-                emit WithdrawalFailed(numberOfFailedWithdrawals, amount, _addresses[i]);
-                ++numberOfFailedWithdrawals;
+                emit WithdrawalFailed(failedCount, amount, addresses[i]);
+                ++failedCount;
             }
         }
+
+        numberOfFailedWithdrawals = failedCount;
     }
 
     /**
