@@ -280,25 +280,13 @@ contract SBCDepositContract is
     mapping(uint256 => FailedWithdrawalRecord) public failedWithdrawals;
     uint256 public numberOfFailedWithdrawals;
 
-    bool private failedWithdrawalProcessEntered;
-    modifier failedWithdrawalProcessNonReentrant() {
-        require(!failedWithdrawalProcessEntered, "Failed withdrawal processing reentrancy");
-        failedWithdrawalProcessEntered = true;
-        _;
-        failedWithdrawalProcessEntered = false;
-    }
-
     /**
      * @dev Function to be used to process a failed withdrawal (possibly partially).
      * @param _failedWithdrawalId Id of a failed withdrawal.
      * @param _amountToProceed Amount of token to withdraw (for the case it is impossible to withdraw the full amount)
      * (available only for the receiver, will be ignored if other account tries to process the withdrawal).
      */
-    function processFailedWithdrawal(uint256 _failedWithdrawalId, uint256 _amountToProceed)
-        external
-        failedWithdrawalProcessNonReentrant
-        whenNotPaused
-    {
+    function processFailedWithdrawal(uint256 _failedWithdrawalId, uint256 _amountToProceed) external whenNotPaused {
         require(_failedWithdrawalId < numberOfFailedWithdrawals, "Failed withdrawal do not exist");
 
         FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[_failedWithdrawalId];
@@ -312,14 +300,15 @@ contract SBCDepositContract is
             }
         }
 
-        bool success = _processWithdrawal(amountToProceed, failedWithdrawalRecord.receiver, gasleft());
-        require(success, "Withdrawal processing failed");
         if (amountToProceed == failedWithdrawalRecord.amount) {
             failedWithdrawalRecord.processed = true;
         } else {
             failedWithdrawalRecord.amount -= amountToProceed;
         }
         emit FailedWithdrawalProcessed(_failedWithdrawalId, amountToProceed, failedWithdrawalRecord.receiver);
+
+        bool success = _processWithdrawal(amountToProceed, failedWithdrawalRecord.receiver, gasleft());
+        require(success, "Withdrawal processing failed");
     }
 
     uint256 public failedWithdrawalsPointer;
@@ -331,10 +320,7 @@ contract SBCDepositContract is
      * so using constant gas limit and constant max number of withdrawals for calls of this function is ok.
      * @param _maxNumberOfFailedWithdrawalsToProcess Maximum number of failed withdrawals to be processed.
      */
-    function processFailedWithdrawalsFromPointer(uint256 _maxNumberOfFailedWithdrawalsToProcess)
-        public
-        failedWithdrawalProcessNonReentrant
-    {
+    function processFailedWithdrawalsFromPointer(uint256 _maxNumberOfFailedWithdrawalsToProcess) public {
         for (uint256 i = 0; i < _maxNumberOfFailedWithdrawalsToProcess; ++i) {
             if (failedWithdrawalsPointer == numberOfFailedWithdrawals) {
                 break;
@@ -342,15 +328,16 @@ contract SBCDepositContract is
 
             FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[failedWithdrawalsPointer];
             if (!failedWithdrawalRecord.processed) {
+                failedWithdrawalRecord.processed = true;
                 bool success = _processWithdrawal(
                     failedWithdrawalRecord.amount,
                     failedWithdrawalRecord.receiver,
                     DEFAULT_GAS_PER_WITHDRAWAL
                 );
                 if (!success) {
+                    failedWithdrawalRecord.processed = false;
                     break;
                 }
-                failedWithdrawalRecord.processed = true;
                 emit FailedWithdrawalProcessed(
                     failedWithdrawalsPointer,
                     failedWithdrawalRecord.amount,
