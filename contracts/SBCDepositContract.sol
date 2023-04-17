@@ -302,24 +302,26 @@ contract SBCDepositContract is
         require(_failedWithdrawalId < numberOfFailedWithdrawals, "Failed withdrawal do not exist");
 
         FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[_failedWithdrawalId];
-        require(!failedWithdrawalRecord.processed, "Failed withdrawal already processed");
+        FailedWithdrawalRecord memory cachedFailedWithdrawalRecord = failedWithdrawalRecord;
 
-        uint256 amountToProceed = failedWithdrawalRecord.amount;
-        if (_msgSender() == failedWithdrawalRecord.receiver) {
+        require(!cachedFailedWithdrawalRecord.processed, "Failed withdrawal already processed");
+
+        uint256 amountToProceed = cachedFailedWithdrawalRecord.amount;
+        if (_msgSender() == cachedFailedWithdrawalRecord.receiver) {
             if (_amountToProceed != 0) {
-                require(_amountToProceed <= failedWithdrawalRecord.amount, "Invalid amount of tokens");
+                require(_amountToProceed <= cachedFailedWithdrawalRecord.amount, "Invalid amount of tokens");
                 amountToProceed = _amountToProceed;
             }
         }
 
-        bool success = _processWithdrawal(amountToProceed, failedWithdrawalRecord.receiver, gasleft());
+        bool success = _processWithdrawal(amountToProceed, cachedFailedWithdrawalRecord.receiver, gasleft());
         require(success, "Withdrawal processing failed");
-        if (amountToProceed == failedWithdrawalRecord.amount) {
+        if (amountToProceed == cachedFailedWithdrawalRecord.amount) {
             failedWithdrawalRecord.processed = true;
         } else {
             failedWithdrawalRecord.amount -= amountToProceed;
         }
-        emit FailedWithdrawalProcessed(_failedWithdrawalId, amountToProceed, failedWithdrawalRecord.receiver);
+        emit FailedWithdrawalProcessed(_failedWithdrawalId, amountToProceed, cachedFailedWithdrawalRecord.receiver);
     }
 
     uint256 public failedWithdrawalsPointer;
@@ -345,7 +347,7 @@ contract SBCDepositContract is
                 break;
             }
 
-            FailedWithdrawalRecord storage failedWithdrawalRecord = withdrawals[pointer];
+            FailedWithdrawalRecord memory failedWithdrawalRecord = withdrawals[pointer];
             if (!failedWithdrawalRecord.processed) {
                 bool success = _processWithdrawal(
                     failedWithdrawalRecord.amount,
