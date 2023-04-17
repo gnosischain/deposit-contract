@@ -309,7 +309,7 @@ contract SBCDepositContract is
         uint256 amountToProceed = cachedFailedWithdrawalRecord.amount;
         if (_msgSender() == cachedFailedWithdrawalRecord.receiver) {
             if (_amountToProceed != 0) {
-                require(_amountToProceed <= cachedFailedWithdrawalRecord.amount, "Invalid amount of tokens");
+                require(_amountToProceed <= amountToProceed, "Invalid amount of tokens");
                 amountToProceed = _amountToProceed;
             }
         }
@@ -319,7 +319,7 @@ contract SBCDepositContract is
         if (amountToProceed == cachedFailedWithdrawalRecord.amount) {
             failedWithdrawalRecord.processed = true;
         } else {
-            failedWithdrawalRecord.amount -= amountToProceed;
+            failedWithdrawalRecord.amount = cachedFailedWithdrawalRecord.amount - amountToProceed;
         }
         emit FailedWithdrawalProcessed(_failedWithdrawalId, amountToProceed, cachedFailedWithdrawalRecord.receiver);
     }
