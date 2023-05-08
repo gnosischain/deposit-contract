@@ -299,9 +299,6 @@ contract SBCDepositContract is
         bool success = _processWithdrawal(amountToProceed, failedWithdrawalRecord.receiver, gasleft());
         require(success, "Withdrawal processing failed");
         emit FailedWithdrawalProcessed(_failedWithdrawalId, amountToProceed, failedWithdrawalRecord.receiver);
-
-        bool success = _processWithdrawal(amountToProceed, failedWithdrawalRecord.receiver, gasleft());
-        require(success, "Withdrawal processing failed");
     }
 
     uint256 public failedWithdrawalsPointer;
