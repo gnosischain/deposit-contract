@@ -325,11 +325,8 @@ contract SBCDepositContract is
                 uint256 amount = failedWithdrawalRecord.amount;
                 failedWithdrawalRecord.amount = 0;
 
-                bool success = _processWithdrawal(
-                    failedWithdrawalRecord.amount,
-                    failedWithdrawalRecord.receiver,
-                    DEFAULT_GAS_PER_WITHDRAWAL
-                );
+                // Execute the withdrawal
+                bool success = _processWithdrawal(amount, failedWithdrawalRecord.receiver, DEFAULT_GAS_PER_WITHDRAWAL);
 
                 if (!success) {
                     // Reset the record amount for the reentrancy guard
