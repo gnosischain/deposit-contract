@@ -28,7 +28,7 @@ contract SBCDepositContract is
 
     uint256 private constant DEPOSIT_CONTRACT_TREE_DEPTH = 32;
     // NOTE: this also ensures `deposit_count` will fit into 64-bits
-    uint256 private constant MAX_DEPOSIT_COUNT = 2**DEPOSIT_CONTRACT_TREE_DEPTH - 1;
+    uint256 private constant MAX_DEPOSIT_COUNT = 2 ** DEPOSIT_CONTRACT_TREE_DEPTH - 1;
 
     bytes32[DEPOSIT_CONTRACT_TREE_DEPTH] private zero_hashes;
 
@@ -254,11 +254,7 @@ contract SBCDepositContract is
      * @param _receiver Receiver of the withdrawal.
      * @return success An indicator of whether the withdrawal was successful or not.
      */
-    function _processWithdrawal(
-        uint256 _amount,
-        address _receiver,
-        uint256 gasLimit
-    ) internal returns (bool success) {
+    function _processWithdrawal(uint256 _amount, address _receiver, uint256 gasLimit) internal returns (bool success) {
         // Skip withdrawal that burns tokens to avoid a revert condition
         // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/dad73159df3d3053c72b5e430fa8164330f18068/contracts/token/ERC20/ERC20.sol#L278
         if (_receiver == address(0)) {
@@ -275,7 +271,6 @@ contract SBCDepositContract is
     struct FailedWithdrawalRecord {
         uint256 amount;
         address receiver;
-        bool processed;
     }
     mapping(uint256 => FailedWithdrawalRecord) public failedWithdrawals;
     uint256 public numberOfFailedWithdrawals;
@@ -290,7 +285,7 @@ contract SBCDepositContract is
         require(_failedWithdrawalId < numberOfFailedWithdrawals, "Failed withdrawal do not exist");
 
         FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[_failedWithdrawalId];
-        require(!failedWithdrawalRecord.processed, "Failed withdrawal already processed");
+        require(failedWithdrawalRecord.amount > 0, "Failed withdrawal already processed");
 
         uint256 amountToProceed = failedWithdrawalRecord.amount;
         if (_msgSender() == failedWithdrawalRecord.receiver) {
@@ -300,15 +295,10 @@ contract SBCDepositContract is
             }
         }
 
-        if (amountToProceed == failedWithdrawalRecord.amount) {
-            failedWithdrawalRecord.processed = true;
-        } else {
-            failedWithdrawalRecord.amount -= amountToProceed;
-        }
-        emit FailedWithdrawalProcessed(_failedWithdrawalId, amountToProceed, failedWithdrawalRecord.receiver);
-
+        failedWithdrawalRecord.amount -= amountToProceed;
         bool success = _processWithdrawal(amountToProceed, failedWithdrawalRecord.receiver, gasleft());
         require(success, "Withdrawal processing failed");
+        emit FailedWithdrawalProcessed(_failedWithdrawalId, amountToProceed, failedWithdrawalRecord.receiver);
     }
 
     uint256 public failedWithdrawalsPointer;
@@ -327,22 +317,21 @@ contract SBCDepositContract is
             }
 
             FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[failedWithdrawalsPointer];
-            if (!failedWithdrawalRecord.processed) {
-                failedWithdrawalRecord.processed = true;
-                bool success = _processWithdrawal(
-                    failedWithdrawalRecord.amount,
-                    failedWithdrawalRecord.receiver,
-                    DEFAULT_GAS_PER_WITHDRAWAL
-                );
+            if (failedWithdrawalRecord.amount > 0) {
+                // Reentrancy guard
+                uint256 amount = failedWithdrawalRecord.amount;
+                failedWithdrawalRecord.amount = 0;
+
+                // Execute the withdrawal
+                bool success = _processWithdrawal(amount, failedWithdrawalRecord.receiver, DEFAULT_GAS_PER_WITHDRAWAL);
+
                 if (!success) {
-                    failedWithdrawalRecord.processed = false;
+                    // Reset the record amount for the reentrancy guard
+                    failedWithdrawalRecord.amount = amount;
                     break;
                 }
-                emit FailedWithdrawalProcessed(
-                    failedWithdrawalsPointer,
-                    failedWithdrawalRecord.amount,
-                    failedWithdrawalRecord.receiver
-                );
+
+                emit FailedWithdrawalProcessed(failedWithdrawalsPointer, amount, failedWithdrawalRecord.receiver);
             }
 
             ++failedWithdrawalsPointer;
@@ -385,8 +374,7 @@ contract SBCDepositContract is
             } else {
                 failedWithdrawals[numberOfFailedWithdrawals] = FailedWithdrawalRecord({
                     amount: amount,
-                    receiver: _addresses[i],
-                    processed: false
+                    receiver: _addresses[i]
                 });
                 emit WithdrawalFailed(numberOfFailedWithdrawals, amount, _addresses[i]);
                 ++numberOfFailedWithdrawals;
