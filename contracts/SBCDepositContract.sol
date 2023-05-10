@@ -391,6 +391,17 @@ contract SBCDepositContract is
     }
 
     /**
+     * @dev Check if a block's withdrawal has been fully processed or not
+     * @param _withdrawalIndex EIP-4895 withdrawal.index property
+     */
+    function isWithdrawalProcessed(uint64 _withdrawalIndex) external view returns (bool) {
+        require(_withdrawalIndex < nextWithdrawalIndex, "withdrawal_index out-of-bounds");
+        // If there are no withdrawals failedWithdrawalByIndex returns zero, failedWithdrawals empty struct
+        // such that amount is zero and this function returns true
+        return failedWithdrawals[failedWithdrawalByIndex[_withdrawalIndex]].amount == 0;
+    }
+
+    /**
      * @dev Allows to unwrap the mGNO in this contract to GNO
      * Only admin can call this method.
      * @param _unwrapper address of the mGNO token unwrapper
