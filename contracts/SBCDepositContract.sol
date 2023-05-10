@@ -274,6 +274,7 @@ contract SBCDepositContract is
         uint64 withdrawalIndex;
     }
     mapping(uint256 => FailedWithdrawalRecord) public failedWithdrawals;
+    mapping(uint64 => uint256) public failedWithdrawalByIndex;
     uint256 public numberOfFailedWithdrawals;
     uint64 public nextWithdrawalIndex;
 
@@ -379,6 +380,7 @@ contract SBCDepositContract is
                     receiver: _addresses[i],
                     withdrawalIndex: nextWithdrawalIndex
                 });
+                failedWithdrawalByIndex[nextWithdrawalIndex] = numberOfFailedWithdrawals;
                 emit WithdrawalFailed(numberOfFailedWithdrawals, amount, _addresses[i]);
                 ++numberOfFailedWithdrawals;
             }
