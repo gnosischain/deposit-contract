@@ -271,9 +271,11 @@ contract SBCDepositContract is
     struct FailedWithdrawalRecord {
         uint256 amount;
         address receiver;
+        uint64 withdrawalIndex;
     }
     mapping(uint256 => FailedWithdrawalRecord) public failedWithdrawals;
     uint256 public numberOfFailedWithdrawals;
+    uint64 public nextWithdrawalIndex;
 
     /**
      * @dev Function to be used to process a failed withdrawal (possibly partially).
@@ -374,11 +376,15 @@ contract SBCDepositContract is
             } else {
                 failedWithdrawals[numberOfFailedWithdrawals] = FailedWithdrawalRecord({
                     amount: amount,
-                    receiver: _addresses[i]
+                    receiver: _addresses[i],
+                    withdrawalIndex: nextWithdrawalIndex
                 });
                 emit WithdrawalFailed(numberOfFailedWithdrawals, amount, _addresses[i]);
                 ++numberOfFailedWithdrawals;
             }
+
+            // First withdrawal is index 0
+            nextWithdrawalIndex++;
         }
     }
 
