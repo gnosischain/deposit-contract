@@ -274,7 +274,7 @@ contract SBCDepositContract is
         uint64 withdrawalIndex;
     }
     mapping(uint256 => FailedWithdrawalRecord) public failedWithdrawals;
-    mapping(uint64 => uint256) public failedWithdrawalByIndex;
+    mapping(uint64 => uint256) public failedWithdrawalIndexByWithdrawalIndex;
     uint256 public numberOfFailedWithdrawals;
     uint64 public nextWithdrawalIndex;
 
@@ -380,7 +380,9 @@ contract SBCDepositContract is
                     receiver: _addresses[i],
                     withdrawalIndex: nextWithdrawalIndex
                 });
-                failedWithdrawalByIndex[nextWithdrawalIndex] = numberOfFailedWithdrawals;
+                // Shift `failedWithdrawalIndex` by one to allow `isWithdrawalProcessed()`
+                // to detect successful withdrawals
+                failedWithdrawalIndexByWithdrawalIndex[nextWithdrawalIndex] = numberOfFailedWithdrawals + 1;
                 emit WithdrawalFailed(numberOfFailedWithdrawals, amount, _addresses[i]);
                 ++numberOfFailedWithdrawals;
             }
@@ -396,9 +398,14 @@ contract SBCDepositContract is
      */
     function isWithdrawalProcessed(uint64 _withdrawalIndex) external view returns (bool) {
         require(_withdrawalIndex < nextWithdrawalIndex, "withdrawal_index out-of-bounds");
-        // If there are no withdrawals failedWithdrawalByIndex returns zero, failedWithdrawals empty struct
-        // such that amount is zero and this function returns true
-        return failedWithdrawals[failedWithdrawalByIndex[_withdrawalIndex]].amount == 0;
+        // Only failed withdrawals are registered into failedWithdrawalByIndex, so successful withdrawals
+        // `_withdrawalIndex` return `failedWithdrawalIndex` 0.
+        uint256 failedWithdrawalIndex = failedWithdrawalIndexByWithdrawalIndex[_withdrawalIndex];
+        if (failedWithdrawalIndex == 0) {
+            return true;
+        }
+        // `failedWithdrawalIndex` are shifted by one for the above case
+        return failedWithdrawals[failedWithdrawalIndex - 1].amount == 0;
     }
 
     /**
