@@ -318,6 +318,46 @@ contract('SBCDepositContractProxy', (accounts) => {
     expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(zeroEther)
   })
 
+  it("isWithdrawalProcessed first withdrawal successful", async () => {
+    // No withdrawals yet, none should be processed
+    // Withdrawals state = []
+    await assertWithdrawalsState([]);
+
+    await executeSuccessfulWithdrawal();
+    // Withdrawal state = [success]
+    await assertWithdrawalsState([true]);
+
+    await executeFailedWithdrawal();
+    // Withdrawal state = [success, failed]
+    await assertWithdrawalsState([true, false]);
+
+    await reexecuteFailedWithdrawal();
+    // Withdrawal state = [success, success]
+    await assertWithdrawalsState([true, true]);
+  });
+
+  it("isWithdrawalProcessed first withdrawal failed", async () => {
+    // No withdrawals yet, none should be processed
+    // Withdrawals state = []
+    await assertWithdrawalsState([]);
+
+    await executeFailedWithdrawal();
+    // Withdrawal state = [failed]
+    await assertWithdrawalsState([false]);
+
+    await executeFailedWithdrawal();
+    // Withdrawal state = [failed, failed]
+    await assertWithdrawalsState([false, false]);
+
+    await reexecuteFailedWithdrawal();
+    // Withdrawal state = [failed, success]
+    await assertWithdrawalsState([true, false]);
+
+    await reexecuteFailedWithdrawal();
+    // Withdrawal state = [success, success]
+    await assertWithdrawalsState([true, true]);
+  });
+
   it('should claim tokens', async () => {
     const otherToken = await IERC677.new()
     await stake.transfer(contract.address, 1)
@@ -348,6 +388,36 @@ contract('SBCDepositContractProxy', (accounts) => {
     await contract.unwrapTokens(wrapper.address, token.address)
     expect((await stake.balanceOf(contract.address)).toString()).to.be.equal(web3.utils.toWei('42'))
   })
+
+  async function executeSuccessfulWithdrawal() {
+    const amounts = ["0x0000000773594000"] // 32 * 10^9
+    const addresses = [accounts[1]]
+    await stake.transfer(contract.address, depositAmount)
+    await contract.executeSystemWithdrawals(0, amounts, addresses)
+  }
+
+  async function executeFailedWithdrawal() {
+    const amounts = ["0x0000000773594000"] // 32 * 10^9
+    const addresses = [accounts[1]]
+    await contract.executeSystemWithdrawals(0, amounts, addresses)
+  }
+
+  async function reexecuteFailedWithdrawal() {
+    await stake.transfer(contract.address, depositAmount)
+    await contract.executeSystemWithdrawals(1, [], [])
+  }
+
+  // Call with bool array where true = successful withdrawal
+  async function assertWithdrawalsState(withdrawalState) {
+    for (let i = 0; i < withdrawalState.length; i++) {
+      expect(await contract.isWithdrawalProcessed(i)).equal(
+        withdrawalState[i],
+        `wrong isWithdrawalProcessed(${i}), withdrawalState ${JSON.stringify(withdrawalState)}`
+      )
+    }
+    // Should revert with out-of-bounds on the next withdrawalState
+    await contract.isWithdrawalProcessed(withdrawalState.length).should.be.rejected
+  }
 })
 
 function assertSuccessfulWithdrawal(tx) {

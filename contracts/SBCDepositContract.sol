@@ -271,9 +271,12 @@ contract SBCDepositContract is
     struct FailedWithdrawalRecord {
         uint256 amount;
         address receiver;
+        uint64 withdrawalIndex;
     }
     mapping(uint256 => FailedWithdrawalRecord) public failedWithdrawals;
+    mapping(uint64 => uint256) public failedWithdrawalIndexByWithdrawalIndex;
     uint256 public numberOfFailedWithdrawals;
+    uint64 public nextWithdrawalIndex;
 
     /**
      * @dev Function to be used to process a failed withdrawal (possibly partially).
@@ -374,12 +377,35 @@ contract SBCDepositContract is
             } else {
                 failedWithdrawals[numberOfFailedWithdrawals] = FailedWithdrawalRecord({
                     amount: amount,
-                    receiver: _addresses[i]
+                    receiver: _addresses[i],
+                    withdrawalIndex: nextWithdrawalIndex
                 });
+                // Shift `failedWithdrawalIndex` by one to allow `isWithdrawalProcessed()`
+                // to detect successful withdrawals
+                failedWithdrawalIndexByWithdrawalIndex[nextWithdrawalIndex] = numberOfFailedWithdrawals + 1;
                 emit WithdrawalFailed(numberOfFailedWithdrawals, amount, _addresses[i]);
                 ++numberOfFailedWithdrawals;
             }
+
+            // First withdrawal is index 0
+            nextWithdrawalIndex++;
         }
+    }
+
+    /**
+     * @dev Check if a block's withdrawal has been fully processed or not
+     * @param _withdrawalIndex EIP-4895 withdrawal.index property
+     */
+    function isWithdrawalProcessed(uint64 _withdrawalIndex) external view returns (bool) {
+        require(_withdrawalIndex < nextWithdrawalIndex, "withdrawal_index out-of-bounds");
+        // Only failed withdrawals are registered into failedWithdrawalByIndex, so successful withdrawals
+        // `_withdrawalIndex` return `failedWithdrawalIndex` 0.
+        uint256 failedWithdrawalIndex = failedWithdrawalIndexByWithdrawalIndex[_withdrawalIndex];
+        if (failedWithdrawalIndex == 0) {
+            return true;
+        }
+        // `failedWithdrawalIndex` are shifted by one for the above case
+        return failedWithdrawals[failedWithdrawalIndex - 1].amount == 0;
     }
 
     /**
