@@ -20,7 +20,7 @@ module.exports = async function (deployer, network, accounts) {
     const token = await SBCToken.at(tokenProxy.address)
 
     // deploy deposit contract
-    await deployer.deploy(SBCDepositContractProxy, accounts[0], token.address, process.env.STAKE_TOKEN_ADDRESS, process.env.STAKE_TOKEN_ADDRESS)
+    await deployer.deploy(SBCDepositContractProxy, accounts[0], token.address)
     const depositContractProxy = await SBCDepositContractProxy.deployed()
 
     // deploy token wrapper
@@ -29,7 +29,7 @@ module.exports = async function (deployer, network, accounts) {
     const wrapper = await SBCWrapper.at(wrapperProxy.address)
 
     // upgrade deposit with the correct unwrapper address
-    await deployer.deploy(SBCDepositContract, token.address, wrapperProxy.address, process.env.STAKE_TOKEN_ADDRESS)
+    await deployer.deploy(SBCDepositContract, token.address)
     const depositContractImplementationWithUnwrapper = await SBCDepositContract.deployed()
     await depositContractProxy.upgradeTo(depositContractImplementationWithUnwrapper.address)
 
