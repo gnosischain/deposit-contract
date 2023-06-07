@@ -231,113 +231,27 @@ contract SBCDepositContract is
     /*** Withdrawal part ***/
 
     address private constant SYSTEM_WITHDRAWAL_EXECUTOR = 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE;
-
-    uint256 private constant DEFAULT_GAS_PER_WITHDRAWAL = 300000;
-
-    /**
-     * @dev Function to be used to process a withdrawal.
-     * Actually it is an internal function, only this contract can call it.
-     * This is done in order to roll back all changes in case of revert.
-     * @param _amount Amount to be withdrawn.
-     * @param _receiver Receiver of the withdrawal.
-     */
-    function processWithdrawalInternal(uint256 _amount, address _receiver) external {
-        require(msg.sender == address(this), "Should be used only as an internal call");
-        stake_token.safeTransfer(_receiver, _amount);
-    }
+    mapping(address => uint256) public withdrawableAmount;
 
     /**
-     * @dev Internal function to be used to process a withdrawal.
-     * Uses processWithdrawalInternal under the hood.
-     * Call to this function will revert only if it ran out of gas.
-     * @param _amount Amount to be withdrawn.
-     * @param _receiver Receiver of the withdrawal.
-     * @return success An indicator of whether the withdrawal was successful or not.
+     * @dev Claim withdrawal amount for an address
+     * @param _address Address to transfer withdrawable tokens
      */
-    function _processWithdrawal(uint256 _amount, address _receiver, uint256 gasLimit) internal returns (bool success) {
-        // Skip withdrawal that burns tokens to avoid a revert condition
-        // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/dad73159df3d3053c72b5e430fa8164330f18068/contracts/token/ERC20/ERC20.sol#L278
-        if (_receiver == address(0)) {
-            return true;
-        }
-
-        try this.processWithdrawalInternal{gas: gasLimit}(_amount, _receiver) {
-            return true;
-        } catch {
-            return false;
+    function claimWithdrawal(address _address) public {
+        uint256 amount = withdrawableAmount[_address];
+        if (amount > 0) {
+            withdrawableAmount[_address] = 0;
+            stake_token.safeTransfer(_address, amount);
         }
     }
 
-    struct FailedWithdrawalRecord {
-        uint256 amount;
-        address receiver;
-        uint64 withdrawalIndex;
-    }
-    mapping(uint256 => FailedWithdrawalRecord) public failedWithdrawals;
-    mapping(uint64 => uint256) public failedWithdrawalIndexByWithdrawalIndex;
-    uint256 public numberOfFailedWithdrawals;
-    uint64 public nextWithdrawalIndex;
-
     /**
-     * @dev Function to be used to process a failed withdrawal (possibly partially).
-     * @param _failedWithdrawalId Id of a failed withdrawal.
-     * @param _amountToProceed Amount of token to withdraw (for the case it is impossible to withdraw the full amount)
-     * (available only for the receiver, will be ignored if other account tries to process the withdrawal).
+     * @dev Claim withdrawal amounts for an array of addresses
+     * @param _addresses Addresses to transfer withdrawable tokens
      */
-    function processFailedWithdrawal(uint256 _failedWithdrawalId, uint256 _amountToProceed) external whenNotPaused {
-        require(_failedWithdrawalId < numberOfFailedWithdrawals, "Failed withdrawal do not exist");
-
-        FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[_failedWithdrawalId];
-        require(failedWithdrawalRecord.amount > 0, "Failed withdrawal already processed");
-
-        uint256 amountToProceed = failedWithdrawalRecord.amount;
-        if (_msgSender() == failedWithdrawalRecord.receiver) {
-            if (_amountToProceed != 0) {
-                require(_amountToProceed <= failedWithdrawalRecord.amount, "Invalid amount of tokens");
-                amountToProceed = _amountToProceed;
-            }
-        }
-
-        failedWithdrawalRecord.amount -= amountToProceed;
-        bool success = _processWithdrawal(amountToProceed, failedWithdrawalRecord.receiver, gasleft());
-        require(success, "Withdrawal processing failed");
-        emit FailedWithdrawalProcessed(_failedWithdrawalId, amountToProceed, failedWithdrawalRecord.receiver);
-    }
-
-    uint256 public failedWithdrawalsPointer;
-
-    /**
-     * @dev Function to be used to process failed withdrawals.
-     * Call to this function will revert only if it ran out of gas or it is a reentrant access to failed withdrawals processing.
-     * Call to this function doesn't transmit flow control to any untrusted contract and uses a constant gas limit for each withdrawal,
-     * so using constant gas limit and constant max number of withdrawals for calls of this function is ok.
-     * @param _maxNumberOfFailedWithdrawalsToProcess Maximum number of failed withdrawals to be processed.
-     */
-    function processFailedWithdrawalsFromPointer(uint256 _maxNumberOfFailedWithdrawalsToProcess) public {
-        for (uint256 i = 0; i < _maxNumberOfFailedWithdrawalsToProcess; ++i) {
-            if (failedWithdrawalsPointer == numberOfFailedWithdrawals) {
-                break;
-            }
-
-            FailedWithdrawalRecord storage failedWithdrawalRecord = failedWithdrawals[failedWithdrawalsPointer];
-            if (failedWithdrawalRecord.amount > 0) {
-                // Reentrancy guard
-                uint256 amount = failedWithdrawalRecord.amount;
-                failedWithdrawalRecord.amount = 0;
-
-                // Execute the withdrawal
-                bool success = _processWithdrawal(amount, failedWithdrawalRecord.receiver, DEFAULT_GAS_PER_WITHDRAWAL);
-
-                if (!success) {
-                    // Reset the record amount for the reentrancy guard
-                    failedWithdrawalRecord.amount = amount;
-                    break;
-                }
-
-                emit FailedWithdrawalProcessed(failedWithdrawalsPointer, amount, failedWithdrawalRecord.receiver);
-            }
-
-            ++failedWithdrawalsPointer;
+    function claimWithdrawals(address[] calldata _addresses) external {
+        for (uint256 i = 0; i < _addresses.length; ++i) {
+            claimWithdrawal(_addresses[i]);
         }
     }
 
@@ -365,47 +279,11 @@ contract SBCDepositContract is
         );
         assert(_amounts.length == _addresses.length);
 
-        processFailedWithdrawalsFromPointer(_maxNumberOfFailedWithdrawalsToProcess);
-
         for (uint256 i = 0; i < _amounts.length; ++i) {
             // Divide stake amount by 32 (1 GNO for validating instead of the 32 ETH expected)
             uint256 amount = (uint256(_amounts[i]) * 1 gwei) / 32;
-            bool success = _processWithdrawal(amount, _addresses[i], DEFAULT_GAS_PER_WITHDRAWAL);
-
-            if (success) {
-                emit WithdrawalExecuted(amount, _addresses[i]);
-            } else {
-                failedWithdrawals[numberOfFailedWithdrawals] = FailedWithdrawalRecord({
-                    amount: amount,
-                    receiver: _addresses[i],
-                    withdrawalIndex: nextWithdrawalIndex
-                });
-                // Shift `failedWithdrawalIndex` by one to allow `isWithdrawalProcessed()`
-                // to detect successful withdrawals
-                failedWithdrawalIndexByWithdrawalIndex[nextWithdrawalIndex] = numberOfFailedWithdrawals + 1;
-                emit WithdrawalFailed(numberOfFailedWithdrawals, amount, _addresses[i]);
-                ++numberOfFailedWithdrawals;
-            }
-
-            // First withdrawal is index 0
-            nextWithdrawalIndex++;
+            withdrawableAmount[_addresses[i]] += amount;
         }
-    }
-
-    /**
-     * @dev Check if a block's withdrawal has been fully processed or not
-     * @param _withdrawalIndex EIP-4895 withdrawal.index property
-     */
-    function isWithdrawalProcessed(uint64 _withdrawalIndex) external view returns (bool) {
-        require(_withdrawalIndex < nextWithdrawalIndex, "withdrawal_index out-of-bounds");
-        // Only failed withdrawals are registered into failedWithdrawalByIndex, so successful withdrawals
-        // `_withdrawalIndex` return `failedWithdrawalIndex` 0.
-        uint256 failedWithdrawalIndex = failedWithdrawalIndexByWithdrawalIndex[_withdrawalIndex];
-        if (failedWithdrawalIndex == 0) {
-            return true;
-        }
-        // `failedWithdrawalIndex` are shifted by one for the above case
-        return failedWithdrawals[failedWithdrawalIndex - 1].amount == 0;
     }
 
     /**

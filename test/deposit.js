@@ -210,7 +210,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     await contract.executeSystemWithdrawals(10, amounts, addresses, { from: accounts[0] })
   })
 
-  it('should correctly withdraw GNO, even with failed withdrawal', async () => {
+  it('should correctly withdraw GNO for one address', async () => {
     const amounts = ['0x0000000773594000'] // 32 * 10^9
     const addresses = [accounts[1]]
 
@@ -218,80 +218,33 @@ contract('SBCDepositContractProxy', (accounts) => {
     await stake.transfer(contract.address, depositAmount)
 
     await contract.executeSystemWithdrawals(0, amounts, addresses)
-    const mGNOBalanceAfterFirstWithdrawal = (await stake.balanceOf(accounts[1])).toString()
-    expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(depositAmount)
+    const claimableGNO = (await contract.withdrawableAmount(accounts[1])).toString()
+    expect(claimableGNO).to.be.equal(depositAmount)
 
+    await contract.claimWithdrawal(accounts[1])
+    const GNOBalanceAfterWithdrawal = (await stake.balanceOf(accounts[1])).toString()
+    expect(GNOBalanceAfterWithdrawal).to.be.equal(depositAmount)
+  })
 
-    // failed and processed by queue
+  it('should correctly withdraw GNO for multiple addresses', async () => {
+    const addressCount = 4;
+    const amounts = Array.from({length: addressCount}, () => '0x0000000773594000') // 32 * 10^9
+    const addresses = accounts.slice(1, 1 + addressCount)
+
+    // simple withdrawal
+    await stake.transfer(contract.address, web3.utils.toWei(String(addressCount)))
+
     await contract.executeSystemWithdrawals(0, amounts, addresses)
-    let numberOfFailedWithdrawals = (await contract.numberOfFailedWithdrawals()).toString()
-    expect(numberOfFailedWithdrawals).to.be.equal('1')
+    for (let i = 0; i < addressCount; i++) {
+      const claimableGNO = (await contract.withdrawableAmount(addresses[i])).toString()
+      expect(claimableGNO).to.be.equal(depositAmount)
+    }
 
-    await stake.transfer(contract.address, depositAmount)
-
-    await contract.processFailedWithdrawalsFromPointer(5)
-    const mGNOBalanceAfterSecondWithdrawal = (await stake.balanceOf(accounts[1])).toString()
-    expect(mGNOBalanceAfterSecondWithdrawal).to.be.equal(web3.utils.toWei('2'))
-    let failedWithdrawalsPointer = (await contract.failedWithdrawalsPointer()).toString()
-    expect(failedWithdrawalsPointer).to.be.equal('1')
-    await contract.processFailedWithdrawal(0, 0).should.be.rejected
-
-
-    // failed and processed by queue in executeSystemWithdrawals
-    await contract.executeSystemWithdrawals(0, amounts, addresses)
-    numberOfFailedWithdrawals = (await contract.numberOfFailedWithdrawals()).toString()
-    expect(numberOfFailedWithdrawals).to.be.equal('2')
-
-    await stake.transfer(contract.address, depositAmount)
-
-    await contract.executeSystemWithdrawals(2, [], [])
-    const mGNOBalanceAfterThirdWithdrawal = (await stake.balanceOf(accounts[1])).toString()
-    expect(mGNOBalanceAfterThirdWithdrawal).to.be.equal(web3.utils.toWei('3'))
-    failedWithdrawalsPointer = (await contract.failedWithdrawalsPointer()).toString()
-    expect(failedWithdrawalsPointer).to.be.equal('2')
-    await contract.processFailedWithdrawal(1, 0).should.be.rejected
-
-
-    // failed and processed manually
-    await contract.executeSystemWithdrawals(0, amounts, addresses)
-    numberOfFailedWithdrawals = (await contract.numberOfFailedWithdrawals()).toString()
-    expect(numberOfFailedWithdrawals).to.be.equal('3')
-
-    await stake.transfer(contract.address, depositAmount)
-
-    await contract.processFailedWithdrawal(2, 0)
-    await contract.processFailedWithdrawal(2, 0).should.be.rejected
-
-    let mGNOBalanceAfterFourthWithdrawal = (await stake.balanceOf(accounts[1])).toString()
-    expect(mGNOBalanceAfterFourthWithdrawal).to.be.equal(web3.utils.toWei('4'))
-    failedWithdrawalsPointer = (await contract.failedWithdrawalsPointer()).toString()
-    expect(failedWithdrawalsPointer).to.be.equal('2')
-    await contract.processFailedWithdrawalsFromPointer(5)
-    mGNOBalanceAfterFourthWithdrawal = (await stake.balanceOf(accounts[1])).toString()
-    expect(mGNOBalanceAfterFourthWithdrawal).to.be.equal(web3.utils.toWei('4'))
-    failedWithdrawalsPointer = (await contract.failedWithdrawalsPointer()).toString()
-    expect(failedWithdrawalsPointer).to.be.equal('3')
-
-
-    // failed and processed partially manually
-    await contract.executeSystemWithdrawals(0, amounts, addresses)
-    numberOfFailedWithdrawals = (await contract.numberOfFailedWithdrawals()).toString()
-    expect(numberOfFailedWithdrawals).to.be.equal('4')
-
-    await stake.transfer(contract.address, depositAmount)
-
-    await contract.processFailedWithdrawal(3, halfDepositAmount,  { from : addresses[0] })
-
-    let mGNOBalanceAfterFifthWithdrawal = (await stake.balanceOf(accounts[1])).toString()
-    expect(mGNOBalanceAfterFifthWithdrawal).to.be.equal(web3.utils.toWei('4.5'))
-
-    await contract.processFailedWithdrawal(3, 0)
-
-    mGNOBalanceAfterFifthWithdrawal = (await stake.balanceOf(accounts[1])).toString()
-    expect(mGNOBalanceAfterFifthWithdrawal).to.be.equal(web3.utils.toWei('5'))
-
-    await contract.processFailedWithdrawal(3, 0).should.be.rejected
-    await contract.processFailedWithdrawal(4, 0).should.be.rejected
+    await contract.claimWithdrawals(addresses)
+    for (let i = 0; i < addressCount; i++) {
+      const GNOBalanceAfterWithdrawal = (await stake.balanceOf(addresses[i])).toString()
+      expect(GNOBalanceAfterWithdrawal).to.be.equal(depositAmount)
+    }
   })
 
   it('should correctly withdraw mGNO with amount = 0', async () => {
@@ -301,7 +254,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     // simple withdrawal
     await token.transfer(contract.address, thirtyTwoEther)
 
-    assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
+    await contract.executeSystemWithdrawals(0, amounts, addresses)
     const mGNOBalanceAfterWithdrawal = (await token.balanceOf(accounts[1])).toString()
     expect(mGNOBalanceAfterWithdrawal).to.be.equal(web3.utils.toWei('0'))
   })
@@ -313,50 +266,10 @@ contract('SBCDepositContractProxy', (accounts) => {
     // simple withdrawal
     await token.transfer(contract.address, thirtyTwoEther)
 
-    assertSuccessfulWithdrawal(await contract.executeSystemWithdrawals(0, amounts, addresses))
+    await contract.executeSystemWithdrawals(0, amounts, addresses)
     const mGNOBalanceAfterFirstWithdrawal = (await token.balanceOf(zeroAddress)).toString()
     expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(zeroEther)
   })
-
-  it("isWithdrawalProcessed first withdrawal successful", async () => {
-    // No withdrawals yet, none should be processed
-    // Withdrawals state = []
-    await assertWithdrawalsState([]);
-
-    await executeSuccessfulWithdrawal();
-    // Withdrawal state = [success]
-    await assertWithdrawalsState([true]);
-
-    await executeFailedWithdrawal();
-    // Withdrawal state = [success, failed]
-    await assertWithdrawalsState([true, false]);
-
-    await reexecuteFailedWithdrawal();
-    // Withdrawal state = [success, success]
-    await assertWithdrawalsState([true, true]);
-  });
-
-  it("isWithdrawalProcessed first withdrawal failed", async () => {
-    // No withdrawals yet, none should be processed
-    // Withdrawals state = []
-    await assertWithdrawalsState([]);
-
-    await executeFailedWithdrawal();
-    // Withdrawal state = [failed]
-    await assertWithdrawalsState([false]);
-
-    await executeFailedWithdrawal();
-    // Withdrawal state = [failed, failed]
-    await assertWithdrawalsState([false, false]);
-
-    await reexecuteFailedWithdrawal();
-    // Withdrawal state = [failed, success]
-    await assertWithdrawalsState([true, false]);
-
-    await reexecuteFailedWithdrawal();
-    // Withdrawal state = [success, success]
-    await assertWithdrawalsState([true, true]);
-  });
 
   it('should claim tokens', async () => {
     const otherToken = await IERC677.new()
@@ -388,40 +301,4 @@ contract('SBCDepositContractProxy', (accounts) => {
     await contract.unwrapTokens(wrapper.address, token.address)
     expect((await stake.balanceOf(contract.address)).toString()).to.be.equal(web3.utils.toWei('42'))
   })
-
-  async function executeSuccessfulWithdrawal() {
-    const amounts = ["0x0000000773594000"] // 32 * 10^9
-    const addresses = [accounts[1]]
-    await stake.transfer(contract.address, depositAmount)
-    await contract.executeSystemWithdrawals(0, amounts, addresses)
-  }
-
-  async function executeFailedWithdrawal() {
-    const amounts = ["0x0000000773594000"] // 32 * 10^9
-    const addresses = [accounts[1]]
-    await contract.executeSystemWithdrawals(0, amounts, addresses)
-  }
-
-  async function reexecuteFailedWithdrawal() {
-    await stake.transfer(contract.address, depositAmount)
-    await contract.executeSystemWithdrawals(1, [], [])
-  }
-
-  // Call with bool array where true = successful withdrawal
-  async function assertWithdrawalsState(withdrawalState) {
-    for (let i = 0; i < withdrawalState.length; i++) {
-      expect(await contract.isWithdrawalProcessed(i)).equal(
-        withdrawalState[i],
-        `wrong isWithdrawalProcessed(${i}), withdrawalState ${JSON.stringify(withdrawalState)}`
-      )
-    }
-    // Should revert with out-of-bounds on the next withdrawalState
-    await contract.isWithdrawalProcessed(withdrawalState.length).should.be.rejected
-  }
 })
-
-function assertSuccessfulWithdrawal(tx) {
-  const withdrawEvent = tx.logs.find(log => log.event.startsWith("Withdrawal"))
-  if (!withdrawEvent) throw Error('tx has no Withdraw* events')
-  expect(withdrawEvent.event).equal('WithdrawalExecuted')
-}
