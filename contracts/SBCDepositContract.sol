@@ -264,12 +264,15 @@ contract SBCDepositContract is
      *     - the call ran out of gas.
      * Call to this function doesn't transmit flow control to any untrusted contract and uses a constant gas limit for each withdrawal,
      * so using constant gas limit and constant number of withdrawals (including failed withdrawals) for calls of this function is ok.
-     * @param _maxNumberOfFailedWithdrawalsToProcess Maximum number of failed withdrawals to be processed.
+     * NOTE: This function signature is hardcoded in the Gnosis execution layer clients. Changing this signature without updating the
+     * clients will cause block verification of any post-shangai block to fail. The function signature cannonical spec is here
+     * https://github.com/gnosischain/specs/blob/master/execution/withdrawals.md
+     * @param _deprecatedUnused Previously `maxFailedWithdrawalsToProcess` currently deprecated and ignored
      * @param _amounts Array of amounts to be withdrawn.
      * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
      */
     function executeSystemWithdrawals(
-        uint256 _maxNumberOfFailedWithdrawalsToProcess,
+        uint256 _deprecatedUnused,
         uint64[] calldata _amounts,
         address[] calldata _addresses
     ) external {
