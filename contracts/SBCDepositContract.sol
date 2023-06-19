@@ -39,6 +39,23 @@ contract SBCDepositContract is
 
     IERC20 public immutable stake_token;
 
+    // From the broken withdrawals contract
+    struct FailedWithdrawalRecord {
+        uint256 amount;
+        address receiver;
+        uint64 withdrawalIndex;
+    }
+    
+    mapping(uint256 => FailedWithdrawalRecord) public _failedWithdrawals;
+    mapping(uint64 => uint256) public _failedWithdrawalIndexByWithdrawalIndex;
+    uint256 public _numberOfFailedWithdrawals;
+    uint64 public _nextWithdrawalIndex;
+    uint256 public _failedWithdrawalsPointer;
+
+    // Withdrawals
+    address private constant SYSTEM_WITHDRAWAL_EXECUTOR = 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE;
+    mapping(address => uint256) public withdrawableAmount;
+
     constructor(address _token) {
         stake_token = IERC20(_token);
     }
@@ -227,11 +244,6 @@ contract SBCDepositContract is
         ret[6] = bytesValue[1];
         ret[7] = bytesValue[0];
     }
-
-    /*** Withdrawal part ***/
-
-    address private constant SYSTEM_WITHDRAWAL_EXECUTOR = 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE;
-    mapping(address => uint256) public withdrawableAmount;
 
     /**
      * @dev Claim withdrawal amount for an address
