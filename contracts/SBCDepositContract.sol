@@ -39,6 +39,9 @@ contract SBCDepositContract is
 
     IERC20 public immutable stake_token;
 
+    address private constant SYSTEM_WITHDRAWAL_EXECUTOR = 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE;
+    mapping(address => uint256) public withdrawableAmount;
+
     constructor(address _token) {
         stake_token = IERC20(_token);
     }
@@ -229,9 +232,6 @@ contract SBCDepositContract is
     }
 
     /*** Withdrawal part ***/
-
-    address private constant SYSTEM_WITHDRAWAL_EXECUTOR = 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE;
-    mapping(address => uint256) public withdrawableAmount;
 
     /**
      * @dev Claim withdrawal amount for an address
