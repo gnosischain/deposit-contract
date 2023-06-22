@@ -52,7 +52,10 @@ contract SBCDepositContract is
     // SBCDepositContractOld  │       numberOfFailedWithdrawals        │      69      │                             t_uint256                             │      32       │
     // SBCDepositContractOld  │          nextWithdrawalIndex           │      70      │                             t_uint64                              │       8       │
     // SBCDepositContractOld  │        failedWithdrawalsPointer        │      71      │                             t_uint256                             │      32       |
-    uint256[4] private _deprecated_slots_gap;
+    mapping(uint64 => uint256) public _deprecated_map_up_to_nextWithdrawalIndex;
+    uint256 public _deprecated_slot_69;
+    uint64 public _deprecated_slot_70_nextWithdrawalIndex;
+    uint256 private _deprecated_slot_71;
 
     constructor(address _token) {
         stake_token = IERC20(_token);
@@ -313,10 +316,23 @@ contract SBCDepositContract is
     /**
      * @dev See `_deprecated_slots_gap` comment for rationale
      */
-    function setSlotGapToZero() external onlyAdmin {
-        // set storage slots 69,70,71 back to zero 
-        _deprecated_slots_gap[1] = 0;
-        _deprecated_slots_gap[2] = 0;
-        _deprecated_slots_gap[3] = 0;
+    function setSlotGapToZero(uint64 n) external onlyAdmin {
+        uint64 _nextWithdrawalIndex = _deprecated_slot_70_nextWithdrawalIndex;
+
+        for (uint64 i = 0; i < n; ++i) {
+            _deprecated_map_up_to_nextWithdrawalIndex[_nextWithdrawalIndex - i] = 0;
+
+            if (_nextWithdrawalIndex - i == 0) {
+                // entire map cleared
+                // set storage slots 69,70,71 back to zero 
+                _deprecated_slot_69 = 0;
+                _deprecated_slot_70_nextWithdrawalIndex = 0;
+                _deprecated_slot_71 = 0;
+                return;
+            }
+        }
+
+        // map not cleared yet, store progress
+        _deprecated_slot_70_nextWithdrawalIndex = _nextWithdrawalIndex - n;
     }
 }
