@@ -314,7 +314,7 @@ contract SBCDepositContract is
     }
 
     /**
-     * @dev See `_deprecated_slots_gap` comment for rationale
+     * @dev See `_deprecated_slot_X` variables comment for rationale
      */
     function setSlotGapToZero(uint64 n) external onlyAdmin {
         uint64 _nextWithdrawalIndex = _deprecated_slot_70_nextWithdrawalIndex;
