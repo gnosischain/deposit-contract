@@ -29,6 +29,9 @@ contract SBCDepositContract is
     uint256 private constant DEPOSIT_CONTRACT_TREE_DEPTH = 32;
     // NOTE: this also ensures `deposit_count` will fit into 64-bits
     uint256 private constant MAX_DEPOSIT_COUNT = 2 ** DEPOSIT_CONTRACT_TREE_DEPTH - 1;
+    address private constant SYSTEM_WITHDRAWAL_EXECUTOR = 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE;
+
+    IERC20 public immutable stake_token;
 
     bytes32[DEPOSIT_CONTRACT_TREE_DEPTH] private zero_hashes;
 
@@ -37,9 +40,10 @@ contract SBCDepositContract is
 
     mapping(bytes => bytes32) public validator_withdrawal_credentials;
 
-    IERC20 public immutable stake_token;
+    // This gap contains deprecated variables storage slots (67-71 inclusively).
+    // New state variables MUST be added AFTER this gap to follow historical storage layout.
+    uint256[5] private _deprecated_slots_gap;
 
-    address private constant SYSTEM_WITHDRAWAL_EXECUTOR = 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE;
     mapping(address => uint256) public withdrawableAmount;
 
     constructor(address _token) {
