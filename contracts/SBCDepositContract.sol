@@ -42,6 +42,18 @@ contract SBCDepositContract is
     address private constant SYSTEM_WITHDRAWAL_EXECUTOR = 0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE;
     mapping(address => uint256) public withdrawableAmount;
 
+    // failedWithdrawalIndexByWithdrawalIndex
+    // Chiado network deployed for the shapella the contract at commit https://github.com/gnosischain/deposit-contract/commit/13e155500b626612844e3d0fccc11b02b11ea785
+    // This contract version was latter replaced with the contract at commit https://github.com/gnosischain/deposit-contract/pull/45/commits/8fe75d23497d720b12af9e75790a616dfb64ca6b
+    // The latter version leaves some storage slots orphan, which may cause problems in future updates
+    // This variable is added once to set storage slots 69,70,71 back to zero 
+    // SBCDepositContract     │           withdrawableAmount           │      67      │                  t_mapping(t_address,t_uint256)                   │      32       │
+    // SBCDepositContractOld  │ failedWithdrawalIndexByWithdrawalIndex │      68      │                   t_mapping(t_uint64,t_uint256)                   │      32       │
+    // SBCDepositContractOld  │       numberOfFailedWithdrawals        │      69      │                             t_uint256                             │      32       │
+    // SBCDepositContractOld  │          nextWithdrawalIndex           │      70      │                             t_uint64                              │       8       │
+    // SBCDepositContractOld  │        failedWithdrawalsPointer        │      71      │                             t_uint256                             │      32       |
+    uint256[4] private _deprecated_slots_gap;
+
     constructor(address _token) {
         stake_token = IERC20(_token);
     }
@@ -296,5 +308,15 @@ contract SBCDepositContract is
      */
     function unwrapTokens(IUnwrapper _unwrapper, IERC20 _token) external onlyAdmin {
         _unwrapper.unwrap(address(stake_token), _token.balanceOf(address(this)));
+    }
+
+    /**
+     * @dev See `_deprecated_slots_gap` comment for rationale
+     */
+    function setSlotGapToZero() external onlyAdmin {
+        // set storage slots 69,70,71 back to zero 
+        _deprecated_slots_gap[1] = 0;
+        _deprecated_slots_gap[2] = 0;
+        _deprecated_slots_gap[3] = 0;
     }
 }
