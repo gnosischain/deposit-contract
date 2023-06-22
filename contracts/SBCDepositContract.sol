@@ -46,7 +46,7 @@ contract SBCDepositContract is
     // Chiado network deployed for the shapella the contract at commit https://github.com/gnosischain/deposit-contract/commit/13e155500b626612844e3d0fccc11b02b11ea785
     // This contract version was latter replaced with the contract at commit https://github.com/gnosischain/deposit-contract/pull/45/commits/8fe75d23497d720b12af9e75790a616dfb64ca6b
     // The latter version leaves some storage slots orphan, which may cause problems in future updates
-    // This variable is added once to set storage slots 69,70,71 back to zero 
+    // This variables is added once to set storage slots 69,70,71 and map(68) values back to zero
     // SBCDepositContract     │           withdrawableAmount           │      67      │                  t_mapping(t_address,t_uint256)                   │      32       │
     // SBCDepositContractOld  │ failedWithdrawalIndexByWithdrawalIndex │      68      │                   t_mapping(t_uint64,t_uint256)                   │      32       │
     // SBCDepositContractOld  │       numberOfFailedWithdrawals        │      69      │                             t_uint256                             │      32       │
