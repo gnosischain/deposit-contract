@@ -257,13 +257,10 @@ contract SBCDepositContract is
 
     /**
      * @dev Function to be used only in the system transaction.
-     * Call to this function will revert only in three cases:
+     * Call to this function will revert only in case:
      *     - the caller is not `SYSTEM_WITHDRAWAL_EXECUTOR` or `_admin()`;
      *     - the length of `_amounts` array is not equal to the length of `_addresses` array;
-     *     - it is a reentrant access to failed withdrawals processing;
-     *     - the call ran out of gas.
-     * Call to this function doesn't transmit flow control to any untrusted contract and uses a constant gas limit for each withdrawal,
-     * so using constant gas limit and constant number of withdrawals (including failed withdrawals) for calls of this function is ok.
+     * Call to this function doesn't transmit flow control to any untrusted contract, nor does any operation of unbounded gas usage.
      * NOTE: This function signature is hardcoded in the Gnosis execution layer clients. Changing this signature without updating the
      * clients will cause block verification of any post-shangai block to fail. The function signature cannonical spec is here
      * https://github.com/gnosischain/specs/blob/master/execution/withdrawals.md
