@@ -293,9 +293,10 @@ contract SBCDepositContract is
      *     - the caller is not `SYSTEM_WITHDRAWAL_EXECUTOR` or `_admin()`;
      *     - the length of `_amounts` array is not equal to the length of `_addresses` array;
      * Call to this function doesn't transmit flow control to any untrusted contract, nor does any operation of unbounded gas usage.
-     * NOTE: This function signature is hardcoded in the Gnosis execution layer clients. Changing this signature without updating the
-     * clients will cause block verification of any post-shangai block to fail. The function signature cannonical spec is here
-     * https://github.com/gnosischain/specs/blob/master/execution/withdrawals.md
+     * NOTE: This function signature is not the cannonical spec'ed signature as per specs of June 2023. However it is added before use
+     * to allow syncing of olds blocks if we choose to drop the first deprecated argument in the future. 
+     * NOTE: The chiado network features a range of blocks that require the signature `executeSystemWithdrawals(uint256,uint64[],address[])`.
+     * Fully deprecating support for the above signature will not disrupt Gnosis network but will disrupt Chiado network.
      * @param _amounts Array of amounts to be withdrawn.
      * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
      */
