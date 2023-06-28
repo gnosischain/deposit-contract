@@ -2,14 +2,15 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import "./interfaces/IDepositContract.sol";
-import "./interfaces/IERC677Receiver.sol";
-import "./interfaces/IUnwrapper.sol";
-import "./interfaces/IWithdrawalContract.sol";
-import "./utils/PausableEIP1967Admin.sol";
-import "./utils/Claimable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IDepositContract} from "./interfaces/IDepositContract.sol";
+import {IERC677Receiver} from "./interfaces/IERC677Receiver.sol";
+import {IUnwrapper} from "./interfaces/IUnwrapper.sol";
+import {IWithdrawalContract} from "./interfaces/IWithdrawalContract.sol";
+import {PausableEIP1967Admin} from "./utils/PausableEIP1967Admin.sol";
+import {Claimable} from "./utils/Claimable.sol";
 
 /**
  * @title SBCDepositContract
