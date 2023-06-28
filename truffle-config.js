@@ -34,6 +34,12 @@ module.exports = {
       network_id: 100,
       gasPrice: "2000000000",
     },
+    chiado: {
+      provider: () => new HDWalletProvider(privateKey, "https://rpc.chiadochain.net"),
+      network_id: 10200,
+      gasPrice: "1000000000",
+      skipDryRun: true,
+    },
   },
   compilers: {
     solc: {
