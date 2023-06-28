@@ -14,79 +14,27 @@ async function main() {
   const MAX_GAS_PER_BLOCK = 30e6
   const MAX_GAS_PER_TRANSACTION = MAX_GAS_PER_BLOCK * 0.98
   const APROX_GAS_COST_PER_N = 5_000
-  const GAS_PRICE = 6.1e9
+  const GAS_PRICE = 7e9
   const N = 5000
 
   const depositContract = new web3.eth.Contract(SBCDepositContract.abi, DEPOSIT_CONTRACT_PROXY_ADDRESS)
-  const transactionData = depositContract.methods.setSlotGapToZero(N).encodeABI()
 
-  
-
-  // Sent multiple transactions at once
-  // const pendingTransactions = 
-
-  let completed = false
-  const pendingNonces = new Set()
-
-  async function sendTx() {
-    if (completed) return
-
-    try {
-      let nonce = await web3.eth.getTransactionCount(admin, 'pending')
-
-      // Find un-used nonce
-      while (pendingNonces.has(nonce)) {
-        nonce++
-      }
-      pendingNonces.add(nonce)
-
-      const receipt = await new Promise((resolve, reject) => {
-        web3.eth.sendTransaction({
-        from: admin,
-        to: DEPOSIT_CONTRACT_PROXY_ADDRESS,
-        gasLimit: MAX_GAS_PER_TRANSACTION,
-        gasPrice: GAS_PRICE,
-        data: transactionData,
-        nonce
-      })
-        .on('transactionHash', (hash) => console.log(`tx ${hash} nonce ${nonce} submitted`))
-        .on('receipt', (receipt) => resolve(receipt))
-        .on('error', e => reject(e))
-      })
-      console.log(`tx ${receipt.transactionHash} nonce ${nonce} included in block ${receipt.blockNumber}`)
-    } catch (e) {
-      console.error("tx error", e)
+  while (true) {
+    const index = await depositContract.methods._deprecated_slot_70_nextWithdrawalIndex().call()
+    if (index === 0) {
+      return
     }
-    sendTx()
-  }
 
-  for (let i = 0; i < MAX_CONCURRENT_TX; i++) {
-    sendTx()
+    const tx = await depositContract.methods.setSlotGapToZero(N).send({
+      from: admin,
+      gasLimit: MAX_GAS_PER_TRANSACTION,
+      gasPrice: GAS_PRICE
+    })
+    console.log(`tx ${tx.transactionHash} included in block ${tx.blockNumber} index at ${index - N}`)
   }
-
-  // Background task to pull nextWithdrawalIndex
-  await new Promise((resolve) => {
-    setInterval(() => {
-      depositContract.methods._deprecated_slot_70_nextWithdrawalIndex().call()
-        .then(nextWithdrawalIndex => {
-          console.log(Date.now(), nextWithdrawalIndex)
-          if (nextWithdrawalIndex == 0) {
-            completed = true
-            resolve()
-          }
-        })
-        .catch(e => console.error("nextWithdrawalIndex error", e))
-    }, 5 * 1000)
-  })
-  
 }
 
-module.exports = async function (callback) {
-  try {
-    await main();
-  } catch (e) {
-    console.error(e);
-  }
-
-  callback();
-};
+main().catch(e => {
+  console.error(e)
+  process.exit(1);
+})
