@@ -13,7 +13,8 @@
     "deploy-xdai": "truffle migrate --network xdai",
     "deploy-sokol": "truffle migrate --network sokol",
     "lint": "solhint --max-warnings 0 \"contracts/**/*.sol\"",
-    "compute-genesis-bytecode": "truffle compile && truffle exec scripts/compute_genesis_bytecodes.js --network xdai_ro"
+    "compute-genesis-bytecode": "truffle compile && truffle exec scripts/compute_genesis_bytecodes.js --network xdai_ro",
+    "zeroout-chiado": "truffle exec scripts/zeroout_chiado_deposit.js --network chiado"
   },
   "prettier": {
     "printWidth": 120
