@@ -273,7 +273,7 @@ contract SBCDepositContract is
         uint256 _deprecatedUnused,
         uint64[] calldata _amounts,
         address[] calldata _addresses
-    ) external {
+    ) public {
         require(
             _msgSender() == SYSTEM_WITHDRAWAL_EXECUTOR || _msgSender() == _admin(),
             "This function should be called only by SYSTEM_WITHDRAWAL_EXECUTOR or _admin()"
