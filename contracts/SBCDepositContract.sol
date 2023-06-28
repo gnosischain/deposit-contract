@@ -256,6 +256,7 @@ contract SBCDepositContract is
     }
 
     /**
+     * @custom:deprecated
      * @dev Function to be used only in the system transaction.
      * Call to this function will revert only in case:
      *     - the caller is not `SYSTEM_WITHDRAWAL_EXECUTOR` or `_admin()`;
@@ -284,6 +285,22 @@ contract SBCDepositContract is
             uint256 amount = (uint256(_amounts[i]) * 1 gwei) / 32;
             withdrawableAmount[_addresses[i]] += amount;
         }
+    }
+
+    /**
+     * @dev Function to be used only in the system transaction.
+     * Call to this function will revert only in case:
+     *     - the caller is not `SYSTEM_WITHDRAWAL_EXECUTOR` or `_admin()`;
+     *     - the length of `_amounts` array is not equal to the length of `_addresses` array;
+     * Call to this function doesn't transmit flow control to any untrusted contract, nor does any operation of unbounded gas usage.
+     * NOTE: This function signature is hardcoded in the Gnosis execution layer clients. Changing this signature without updating the
+     * clients will cause block verification of any post-shangai block to fail. The function signature cannonical spec is here
+     * https://github.com/gnosischain/specs/blob/master/execution/withdrawals.md
+     * @param _amounts Array of amounts to be withdrawn.
+     * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
+     */
+    function executeSystemWithdrawals(uint64[] calldata _amounts, address[] calldata _addresses) external {
+        executeSystemWithdrawals(0, _amounts, _addresses);
     }
 
     /**
