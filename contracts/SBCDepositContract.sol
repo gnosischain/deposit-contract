@@ -265,6 +265,7 @@ contract SBCDepositContract is
      * NOTE: This function signature is hardcoded in the Gnosis execution layer clients. Changing this signature without updating the
      * clients will cause block verification of any post-shangai block to fail. The function signature cannonical spec is here
      * https://github.com/gnosischain/specs/blob/master/execution/withdrawals.md
+     * @custom:deprecatedparam _deprecatedUnused Previously `maxFailedWithdrawalsToProcess` currently deprecated and ignored
      * @param _amounts Array of amounts to be withdrawn.
      * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
      */
