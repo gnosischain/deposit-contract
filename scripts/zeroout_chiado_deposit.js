@@ -34,7 +34,9 @@ async function main() {
   }
 }
 
-main().catch(e => {
-  console.error(e)
-  process.exit(1);
-})
+
+module.exports = async function (callback) {
+  await main();
+  callback();
+};
+
