@@ -2,12 +2,15 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "./interfaces/IUnwrapper.sol";
-import "./utils/PausableEIP1967Admin.sol";
-import "./SBCToken.sol";
-import "./SBCDepositContract.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {IUnwrapper} from "./interfaces/IUnwrapper.sol";
+import {IERC677Receiver} from "./interfaces/IERC677Receiver.sol";
+import {PausableEIP1967Admin} from "./utils/PausableEIP1967Admin.sol";
+import {SBCToken} from "./SBCToken.sol";
+import {SBCDepositContract} from "./SBCDepositContract.sol";
+import {Claimable} from "./utils/Claimable.sol";
 
 /**
  * @title SBCWrapper

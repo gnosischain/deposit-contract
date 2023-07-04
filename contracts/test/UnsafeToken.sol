@@ -2,8 +2,9 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
-import "../utils/PausableEIP1967Admin.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC20Pausable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
+import {PausableEIP1967Admin} from "../utils/PausableEIP1967Admin.sol";
 
 /**
  * @title Unsafe ERC20 that allows admin to mint or steal tokens

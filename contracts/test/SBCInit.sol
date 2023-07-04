@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.9;
 
-import "../SBCDepositContractProxy.sol";
-import "../SBCToken.sol";
-import "../SBCTokenProxy.sol";
-import "../SBCWrapper.sol";
-import "../SBCWrapperProxy.sol";
-import "./UnsafeToken.sol";
+import {SBCDepositContractProxy} from "../SBCDepositContractProxy.sol";
+import {SBCToken} from "../SBCToken.sol";
+import {SBCTokenProxy} from "../SBCTokenProxy.sol";
+import {SBCWrapper} from "../SBCWrapper.sol";
+import {SBCWrapperProxy} from "../SBCWrapperProxy.sol";
+import {UnsafeToken} from "./UnsafeToken.sol";
 
 contract SBCInit {
     constructor(

@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.9;
 
-import "./utils/EIP1967Proxy.sol";
-import "./SBCDepositContract.sol";
+import {EIP1967Proxy} from "./utils/EIP1967Proxy.sol";
+import {SBCDepositContract} from "./SBCDepositContract.sol";
 
 /**
  * @title SBCDepositContractProxy
