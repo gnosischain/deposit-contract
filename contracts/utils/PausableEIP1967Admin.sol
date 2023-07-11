@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "./EIP1967Admin.sol";
+import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
+import {EIP1967Admin} from "./EIP1967Admin.sol";
 
 /**
  * @title PausableEIP1967Admin

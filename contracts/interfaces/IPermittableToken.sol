@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./IERC677.sol";
+import {IERC677} from "./IERC677.sol";
 
 interface IPermittableToken is IERC677 {
     function permit(
