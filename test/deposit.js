@@ -205,9 +205,9 @@ contract('SBCDepositContractProxy', (accounts) => {
     const amounts = ['0x0000000000000000', '0x0000000000000000']
     const elongatedAmounts = ['0x0000000000000000', '0x0000000000000000', '0x0000000000000000']
     const addresses = [accounts[0], accounts[0]]
-    await contract.executeSystemWithdrawals(10, amounts, addresses, { from: accounts[1] }).should.be.rejected
-    await contract.executeSystemWithdrawals(10, elongatedAmounts, addresses, { from: accounts[0] }).should.be.rejected
-    await contract.executeSystemWithdrawals(10, amounts, addresses, { from: accounts[0] })
+    await contract.executeSystemWithdrawals(amounts, addresses, { from: accounts[1] }).should.be.rejected
+    await contract.executeSystemWithdrawals(elongatedAmounts, addresses, { from: accounts[0] }).should.be.rejected
+    await contract.executeSystemWithdrawals(amounts, addresses, { from: accounts[0] })
   })
 
   it('should correctly withdraw GNO for one address', async () => {
@@ -217,7 +217,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     // simple withdrawal
     await stake.transfer(contract.address, depositAmount)
 
-    await contract.executeSystemWithdrawals(0, amounts, addresses)
+    await contract.executeSystemWithdrawals(amounts, addresses)
     const claimableGNO = (await contract.withdrawableAmount(accounts[1])).toString()
     expect(claimableGNO).to.be.equal(depositAmount)
 
@@ -234,7 +234,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     // simple withdrawal
     await stake.transfer(contract.address, web3.utils.toWei(String(addressCount)))
 
-    await contract.executeSystemWithdrawals(0, amounts, addresses)
+    await contract.executeSystemWithdrawals(amounts, addresses)
     for (let i = 0; i < addressCount; i++) {
       const claimableGNO = (await contract.withdrawableAmount(addresses[i])).toString()
       expect(claimableGNO).to.be.equal(depositAmount)
@@ -254,7 +254,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     // simple withdrawal
     await token.transfer(contract.address, thirtyTwoEther)
 
-    await contract.executeSystemWithdrawals(0, amounts, addresses)
+    await contract.executeSystemWithdrawals(amounts, addresses)
     const mGNOBalanceAfterWithdrawal = (await token.balanceOf(accounts[1])).toString()
     expect(mGNOBalanceAfterWithdrawal).to.be.equal(web3.utils.toWei('0'))
   })
@@ -266,7 +266,7 @@ contract('SBCDepositContractProxy', (accounts) => {
     // simple withdrawal
     await token.transfer(contract.address, thirtyTwoEther)
 
-    await contract.executeSystemWithdrawals(0, amounts, addresses)
+    await contract.executeSystemWithdrawals(amounts, addresses)
     const mGNOBalanceAfterFirstWithdrawal = (await token.balanceOf(zeroAddress)).toString()
     expect(mGNOBalanceAfterFirstWithdrawal).to.be.equal(zeroEther)
   })

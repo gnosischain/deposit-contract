@@ -265,6 +265,8 @@ contract SBCDepositContract is
      * NOTE: This function signature is hardcoded in the Gnosis execution layer clients. Changing this signature without updating the
      * clients will cause block verification of any post-shangai block to fail. The function signature cannonical spec is here
      * https://github.com/gnosischain/specs/blob/master/execution/withdrawals.md
+     * Note: chiado network requires this signature to sync post-shapella blocks. This function signature can only be deprecated after
+     * deprecating chiado network of full sync up to a pre-specified block.
      * @custom:deprecatedparam _deprecatedUnused Previously `maxFailedWithdrawalsToProcess` currently deprecated and ignored
      * @param _amounts Array of amounts to be withdrawn.
      * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
@@ -273,7 +275,7 @@ contract SBCDepositContract is
         uint256 /* _deprecatedUnused */,
         uint64[] calldata _amounts,
         address[] calldata _addresses
-    ) external {
+    ) public {
         require(
             _msgSender() == SYSTEM_WITHDRAWAL_EXECUTOR || _msgSender() == _admin(),
             "This function should be called only by SYSTEM_WITHDRAWAL_EXECUTOR or _admin()"
@@ -285,6 +287,15 @@ contract SBCDepositContract is
             uint256 amount = (uint256(_amounts[i]) * 1 gwei) / 32;
             withdrawableAmount[_addresses[i]] += amount;
         }
+    }
+
+    /**
+     * @dev Forwards compatible signature for `executeSystemWithdrawals` to support its future deprecation
+     * Clients must support and use the signature specified in the spec at:
+     * https://github.com/gnosischain/specs/blob/master/execution/withdrawals.md
+     */
+    function executeSystemWithdrawals(uint64[] calldata _amounts, address[] calldata _addresses) external {
+        executeSystemWithdrawals(0, _amounts, _addresses);
     }
 
     /**
