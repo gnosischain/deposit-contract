@@ -256,7 +256,6 @@ contract SBCDepositContract is
     }
 
     /**
-     * @custom:deprecated
      * @dev Function to be used only in the system transaction.
      * Call to this function will revert only in case:
      *     - the caller is not `SYSTEM_WITHDRAWAL_EXECUTOR` or `_admin()`;
@@ -265,6 +264,8 @@ contract SBCDepositContract is
      * NOTE: This function signature is hardcoded in the Gnosis execution layer clients. Changing this signature without updating the
      * clients will cause block verification of any post-shangai block to fail. The function signature cannonical spec is here
      * https://github.com/gnosischain/specs/blob/master/execution/withdrawals.md
+     * Note: chiado network requires this signature to sync post-shapella blocks. This function signature can only be deprecated after
+     * deprecating chiado network of full sync up to a pre-specified block.
      * @param _deprecatedUnused Previously `maxFailedWithdrawalsToProcess` currently deprecated and ignored
      * @param _amounts Array of amounts to be withdrawn.
      * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
@@ -288,17 +289,9 @@ contract SBCDepositContract is
     }
 
     /**
-     * @dev Function to be used only in the system transaction.
-     * Call to this function will revert only in case:
-     *     - the caller is not `SYSTEM_WITHDRAWAL_EXECUTOR` or `_admin()`;
-     *     - the length of `_amounts` array is not equal to the length of `_addresses` array;
-     * Call to this function doesn't transmit flow control to any untrusted contract, nor does any operation of unbounded gas usage.
-     * NOTE: This function signature is not the cannonical spec'ed signature as per specs of June 2023. However it is added before use
-     * to allow syncing of olds blocks if we choose to drop the first deprecated argument in the future. 
-     * NOTE: The chiado network features a range of blocks that require the signature `executeSystemWithdrawals(uint256,uint64[],address[])`.
-     * Fully deprecating support for the above signature will not disrupt Gnosis network but will disrupt Chiado network.
-     * @param _amounts Array of amounts to be withdrawn.
-     * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
+     * @dev Forwards compatible signature for `executeSystemWithdrawals` to support its future deprecation
+     * Clients must support and use the signature specified in the spec at:
+     * https://github.com/gnosischain/specs/blob/master/execution/withdrawals.md
      */
     function executeSystemWithdrawals(uint64[] calldata _amounts, address[] calldata _addresses) external {
         executeSystemWithdrawals(0, _amounts, _addresses);
