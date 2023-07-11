@@ -2,14 +2,15 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import "./interfaces/IDepositContract.sol";
-import "./interfaces/IERC677Receiver.sol";
-import "./interfaces/IUnwrapper.sol";
-import "./interfaces/IWithdrawalContract.sol";
-import "./utils/PausableEIP1967Admin.sol";
-import "./utils/Claimable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IDepositContract} from "./interfaces/IDepositContract.sol";
+import {IERC677Receiver} from "./interfaces/IERC677Receiver.sol";
+import {IUnwrapper} from "./interfaces/IUnwrapper.sol";
+import {IWithdrawalContract} from "./interfaces/IWithdrawalContract.sol";
+import {PausableEIP1967Admin} from "./utils/PausableEIP1967Admin.sol";
+import {Claimable} from "./utils/Claimable.sol";
 
 /**
  * @title SBCDepositContract
@@ -266,12 +267,12 @@ contract SBCDepositContract is
      * https://github.com/gnosischain/specs/blob/master/execution/withdrawals.md
      * Note: chiado network requires this signature to sync post-shapella blocks. This function signature can only be deprecated after
      * deprecating chiado network of full sync up to a pre-specified block.
-     * @param _deprecatedUnused Previously `maxFailedWithdrawalsToProcess` currently deprecated and ignored
+     * @custom:deprecatedparam _deprecatedUnused Previously `maxFailedWithdrawalsToProcess` currently deprecated and ignored
      * @param _amounts Array of amounts to be withdrawn.
      * @param _addresses Array of addresses that should receive the corresponding amount of tokens.
      */
     function executeSystemWithdrawals(
-        uint256 _deprecatedUnused,
+        uint256 /* _deprecatedUnused */,
         uint64[] calldata _amounts,
         address[] calldata _addresses
     ) public {

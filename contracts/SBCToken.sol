@@ -2,11 +2,12 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
-import "./utils/Claimable.sol";
-import "./utils/PausableEIP1967Admin.sol";
-import "./interfaces/IERC677.sol";
-import "./interfaces/IERC677Receiver.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC20Pausable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
+import {Claimable} from "./utils/Claimable.sol";
+import {PausableEIP1967Admin} from "./utils/PausableEIP1967Admin.sol";
+import {IERC677} from "./interfaces/IERC677.sol";
+import {IERC677Receiver} from "./interfaces/IERC677Receiver.sol";
 
 /**
  * @title SBCToken
