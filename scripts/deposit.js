@@ -12,9 +12,7 @@ const {
   OFFSET,
   START_BLOCK_NUMBER,
   SKIP_PREVIOUS_DEPOSITS_CHECK,
-  WRAPPER_ADDRESS,
   TOKEN_ADDRESS,
-  META_TOKEN_ADDRESS,
   DEPOSIT_CONTRACT_ADDRESS,
 } = process.env
 
@@ -27,18 +25,8 @@ const batchSize = parseInt(BATCH_SIZE, 10)
 const offset = parseInt(OFFSET, 10)
 const n = parseInt(N, 10)
 async function main() {
-  const useMetaTokenDeposit = !!META_TOKEN_ADDRESS && !WRAPPER_ADDRESS && !TOKEN_ADDRESS
-  const useWrapAndDeposit = !META_TOKEN_ADDRESS && !!WRAPPER_ADDRESS && !!TOKEN_ADDRESS
-  if (useMetaTokenDeposit === useWrapAndDeposit) {
-    console.log('Specify either a single META_TOKEN_ADDRESS variable for depositing mGNO directly, ' +
-      'or specify both WRAPPER_ADDRESS and TOKEN_ADDRESS variables for depositing GNO without manual mGNO conversion.')
-    return
-  }
-
   const depositContract = new web3.eth.Contract(depositABI, DEPOSIT_CONTRACT_ADDRESS)
-  const receiver = useWrapAndDeposit ? WRAPPER_ADDRESS : DEPOSIT_CONTRACT_ADDRESS
-  const tokenAddress = useWrapAndDeposit ? TOKEN_ADDRESS : META_TOKEN_ADDRESS
-  const token = new web3.eth.Contract(abi, tokenAddress)
+  const token = new web3.eth.Contract(abi, TOKEN_ADDRESS)
   const deposits = depositData.slice(offset, offset + n)
 
   if (batchSize > 1) {
@@ -57,7 +45,7 @@ async function main() {
     return
   }
 
-  const depositAmountBN = web3.utils.toBN(useWrapAndDeposit ? 1 : 32).mul(web3.utils.toBN('1000000000000000000'))
+  const depositAmountBN = web3.utils.toWei(web3.utils.toBN(1))
   const totalDepositAmountBN = depositAmountBN.muln(deposits.length)
   const tokenBalance = await token.methods.balanceOf(address).call()
 
@@ -100,7 +88,7 @@ async function main() {
 
     if (count === batchSize || i === deposits.length - 1) {
       const amount = depositAmountBN.muln(count)
-      const call = token.methods.transferAndCall(receiver, amount, data)
+      const call = token.methods.transferAndCall(DEPOSIT_CONTRACT_ADDRESS, amount, data)
       let gas
       try {
         gas = await call.estimateGas({ from: address })
@@ -129,6 +117,19 @@ async function main() {
 }
 
 async function getPastLogs(contract, event, { fromBlock, toBlock }) {
+  const maxRange = 1_000_000
+  if (toBlock - fromBlock > maxRange) {
+    const res = []
+    for (let curBlock = fromBlock; curBlock < toBlock; curBlock += maxRange) {
+      const part = await getPastLogs(contract, event, {
+        fromBlock: curBlock,
+        toBlock: Math.min(curBlock + maxRange - 1, toBlock),
+      })
+      res.push(part)
+    }
+    return res.flat()
+  }
+  console.log(`Fetching deposit logs from block ${fromBlock} to block ${toBlock}`)
   try {
     return contract.getPastEvents(event, {
       fromBlock,
