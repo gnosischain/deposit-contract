@@ -1,9 +1,25 @@
 const Web3 = require('web3')
-
+const path = require('path')
+const fs = require('fs')
 const { abi } = require('../build/contracts/IERC677.json')
 const { abi: depositABI } = require('../build/contracts/IDepositContract.json')
 
+require('dotenv').config({ path: path.resolve(__dirname, '.env') })
+
 const {
+  RPC_URL,
+  GAS_PRICE,
+  STAKING_ACCOUNT_PRIVATE_KEY,
+  BATCH_SIZE,
+  N,
+  OFFSET,
+  START_BLOCK_NUMBER,
+  SKIP_PREVIOUS_DEPOSITS_CHECK = false,
+  TOKEN_ADDRESS,
+  DEPOSIT_CONTRACT_ADDRESS,
+} = process.env
+
+for (const [envName, value] of Object.entries({
   RPC_URL,
   GAS_PRICE,
   STAKING_ACCOUNT_PRIVATE_KEY,
@@ -14,12 +30,18 @@ const {
   SKIP_PREVIOUS_DEPOSITS_CHECK,
   TOKEN_ADDRESS,
   DEPOSIT_CONTRACT_ADDRESS,
-} = process.env
+})) {
+  if (value === undefined) throw Error(`must set ENV ${envName}`)
+}
 
 const web3 = new Web3(RPC_URL)
 const { address } = web3.eth.accounts.wallet.add(STAKING_ACCOUNT_PRIVATE_KEY)
 
-const depositData = require(process.argv[2])
+const depositDataFilepath = process.argv[2]
+if (!depositDataFilepath) {
+  throw Error('must provide positional argument $deposit_data_filepath')
+}
+const depositData = readJson(depositDataFilepath) 
 
 const batchSize = parseInt(BATCH_SIZE, 10)
 const offset = parseInt(OFFSET, 10)
@@ -151,6 +173,16 @@ async function getPastLogs(contract, event, { fromBlock, toBlock }) {
     } else {
       throw e
     }
+  }
+}
+
+function readJson(filepath) {
+  const s = fs.readFileSync(filepath)
+  try {
+    return JSON.parse(s)
+  } catch (e) {
+    e.message = `error parsing JSON string: ${e.message}\n${s}` 
+    throw e
   }
 }
 
