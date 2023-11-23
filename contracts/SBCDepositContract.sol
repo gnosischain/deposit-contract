@@ -50,13 +50,17 @@ contract SBCDepositContract is
     function get_deposit_root() external view override returns (bytes32) {
         bytes32 node;
         uint256 size = deposit_count;
-        for (uint256 height = 0; height < DEPOSIT_CONTRACT_TREE_DEPTH; height++) {
+        for (uint256 height; height < DEPOSIT_CONTRACT_TREE_DEPTH;) {
             if ((size & 1) == 1) {
                 node = sha256(abi.encodePacked(branch[height], node));
             } else {
                 node = sha256(abi.encodePacked(node, zero_hashes[height]));
             }
             size /= 2;
+
+            unchecked {
+                ++height;
+            }
         }
         return sha256(abi.encodePacked(node, to_little_endian_64(uint64(deposit_count)), bytes24(0)));
     }
@@ -86,18 +90,22 @@ contract SBCDepositContract is
         require(count > 0, "BatchDeposit: You should deposit at least one validator");
         require(count <= 128, "BatchDeposit: You can deposit max 128 validators at a time");
 
-        require(pubkeys.length == count * 48, "BatchDeposit: Pubkey count don't match");
-        require(signatures.length == count * 96, "BatchDeposit: Signatures count don't match");
-        require(withdrawal_credentials.length == 32, "BatchDeposit: Withdrawal Credentials count don't match");
+        require(pubkeys.length == count * 48, "BatchDeposit: Pubkey count dont match");
+        require(signatures.length == count * 96, "BatchDeposit: Signatures count dont match");
+        require(withdrawal_credentials.length == 32, "BatchDeposit: Withdrawal Credentials count dont match");
 
         uint256 stake_amount = 1 ether;
         stake_token.transferFrom(msg.sender, address(this), stake_amount * count);
 
-        for (uint256 i = 0; i < count; ++i) {
+        for (uint256 i; i < count;) {
             bytes memory pubkey = bytes(pubkeys[i * 48:(i + 1) * 48]);
             bytes memory signature = bytes(signatures[i * 96:(i + 1) * 96]);
 
             _deposit(pubkey, withdrawal_credentials, signature, deposit_data_roots[i], stake_amount);
+
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -118,11 +126,15 @@ contract SBCDepositContract is
         }
 
         bytes memory withdrawal_credentials = data[0:32];
-        for (uint256 p = 32; p < data.length; p += 176) {
+        for (uint256 p = 32; p < data.length;) {
             bytes memory pubkey = data[p:p + 48];
             bytes memory signature = data[p + 48:p + 144];
             bytes32 deposit_data_root = bytes32(data[p + 144:p + 176]);
             _deposit(pubkey, withdrawal_credentials, signature, deposit_data_root, stake_amount_per_deposit);
+
+            unchecked {
+                p += 176;
+            }
         }
         return true;
     }
@@ -186,13 +198,17 @@ contract SBCDepositContract is
         // Add deposit data root to Merkle tree (update a single `branch` node)
         deposit_count += 1;
         uint256 size = deposit_count;
-        for (uint256 height = 0; height < DEPOSIT_CONTRACT_TREE_DEPTH; height++) {
+        for (uint256 height; height < DEPOSIT_CONTRACT_TREE_DEPTH;) {
             if ((size & 1) == 1) {
                 branch[height] = node;
                 return;
             }
             node = sha256(abi.encodePacked(branch[height], node));
             size /= 2;
+
+            unchecked {
+                ++height;
+            }
         }
         // As the loop should always end prematurely with the `return` statement,
         // this code should be unreachable. We assert `false` just to be safe.
@@ -251,8 +267,12 @@ contract SBCDepositContract is
      * @param _addresses Addresses to transfer withdrawable tokens
      */
     function claimWithdrawals(address[] calldata _addresses) external {
-        for (uint256 i = 0; i < _addresses.length; ++i) {
+        for (uint256 i; i < _addresses.length;) {
             claimWithdrawal(_addresses[i]);
+
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -261,7 +281,7 @@ contract SBCDepositContract is
      * Call to this function will revert only in case:
      *     - the caller is not `SYSTEM_WITHDRAWAL_EXECUTOR` or `_admin()`;
      *     - the length of `_amounts` array is not equal to the length of `_addresses` array;
-     * Call to this function doesn't transmit flow control to any untrusted contract, nor does any operation of unbounded gas usage.
+     * Call to this function doesnt transmit flow control to any untrusted contract, nor does any operation of unbounded gas usage.
      * NOTE: This function signature is hardcoded in the Gnosis execution layer clients. Changing this signature without updating the
      * clients will cause block verification of any post-shangai block to fail. The function signature cannonical spec is here
      * https://github.com/gnosischain/specs/blob/master/execution/withdrawals.md
@@ -282,10 +302,14 @@ contract SBCDepositContract is
         );
         assert(_amounts.length == _addresses.length);
 
-        for (uint256 i = 0; i < _amounts.length; ++i) {
+        for (uint256 i; i < _amounts.length;) {
             // Divide stake amount by 32 (1 GNO for validating instead of the 32 ETH expected)
             uint256 amount = (uint256(_amounts[i]) * 1 gwei) / 32;
             withdrawableAmount[_addresses[i]] += amount;
+
+            unchecked {
+                ++i;
+            }
         }
     }
 
