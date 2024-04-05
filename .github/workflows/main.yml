@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   validate:
@@ -28,7 +28,7 @@ jobs:
       - run: yarn test
       - run: ADMIN=0xba61bac431387687512367672613571625671547 npm run compute-genesis-bytecode
 
-  build-and-push-image:
+  deposit-scripts-build-and-push-image:
     runs-on: ubuntu-latest
     needs: validate
     # Sets the permissions granted to the `GITHUB_TOKEN` for the actions in this job.
@@ -47,15 +47,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       # This step uses [docker/metadata-action](https://github.com/docker/metadata-action#about) to extract tags and labels that will be applied to the specified image. The `id` "meta" allows the output of this step to be referenced in a subsequent step. The `images` value provides the base name for the tags and labels.
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Extract metadata (tags, labels) for Docker Deposit Scripts
         id: meta
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/deposit-script
       # This step uses the `docker/build-push-action` action to build the image, based on your repository's `Dockerfile`. If the build succeeds, it pushes the image to GitHub Packages.
       # It uses the `context` parameter to define the build's context as the set of files located in the specified path. For more information, see "[Usage](https://github.com/docker/build-push-action#usage)" in the README of the `docker/build-push-action` repository.
       # It uses the `tags` and `labels` parameters to tag and label the image with the output from the "meta" step.
-      - name: Build and push Docker image
+      - name: Build and push Docker image for Deposit Scripts
         uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56
         with:
           context: .
