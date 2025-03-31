@@ -38,6 +38,20 @@ const depositWC2 = {
   deposit_data_root: '0x6f776e2ebf8eed5b75896b63ecec56cc31e3ab637530a9c4d041d82a0cf46a7f',
   value: '1000000000000000000'
 }
+const deposit0x02 = {
+  pubkey: "0x927601571e884500b9f76d66d5ba2ca4c0c87073b0cbb84b027d0a28dd88c95683a35b25f9f7a646f294acf013442ce3",
+  withdrawal_credentials: "0x0200000000000000000000000ae055097c6d159879521c384f1d2123d1f195e6",
+  signature: "0xb641551c9a62cf17dddc25fe8e637a73adf06c67c3d82529dd5e6d8509c81b087c9e60c588c2eed4e96e78e66829d45302e34674faa5dad059a9ddd2e138f3f230101141c76b70f473285554777a081f045c8e57bb360a85bc81bb2828e2f6a5",
+  deposit_data_root: "0x72f9e98449e33046d349fc7ba4978a4717437ed9a7b0b9c1d2fe5be32811ad37",
+  value: '1000000000000000000'
+}
+const deposit0x02other = {
+  pubkey: "0x890a1421d17d326b37cb5f83f1d2ab0696464ea2fc5171f52ccc13532a10debebd488676b0e2a9c707f0ba2b10b67dc4",
+  withdrawal_credentials: "0x0200000000000000000000000ae055097c6d159879521c384f1d2123d1f195e6",
+  signature: "0xa77f86dcc9d298d14e69849dfdd9e4df81dedc322f85713a629d44d5d6c556bd005c377b5d6c4d73b8b29f8f1f3ee83310bd5dfa5bf47016d05ea674d89279a6dac4d61c1eb9f851227e5fdf0bec2810d368dd3a75ea909d2ec7c49247c4edda",
+  deposit_data_root: "0x4c49fe6f5fca3bcfe416c1c02ed598bb292a70f3083d34b9a09212d83da18487",
+  value: '2000000000000000000'
+}
 const invalidDataRoot = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
 
 function joinHex(args) {
@@ -134,6 +148,35 @@ contract('SBCDepositContractProxy', (accounts) => {
     expect((await stake.balanceOf(contract.address)).toString()).to.be.equal('2000000000000000000')
   })
 
+  it('should batch 0x02-style deposit', async () => {
+    await contract.batchDepositVariableAmount(
+      joinHex([deposit0x02.pubkey, deposit0x02other.pubkey]),
+      deposit0x02.withdrawal_credentials,
+      joinHex([deposit0x02.signature, deposit0x02other.signature]),
+      [deposit0x02.deposit_data_root, deposit0x02other.deposit_data_root],
+      [deposit0x02.value, deposit0x02other.value]
+    ).should.be.rejected
+    await stake.approve(contract.address, '1000000000000000000')
+    await contract.batchDepositVariableAmount(
+      joinHex([deposit0x02.pubkey, deposit0x02other.pubkey]),
+      deposit0x02.withdrawal_credentials,
+      joinHex([deposit0x02.signature, deposit0x02other.signature]),
+      [deposit0x02.deposit_data_root, deposit0x02other.deposit_data_root],
+      [deposit0x02.value, deposit0x02other.value]
+    ).should.be.rejected
+    await stake.approve(contract.address, '3000000000000000000')
+    await contract.batchDepositVariableAmount(
+      joinHex([deposit0x02.pubkey, deposit0x02other.pubkey]),
+      deposit0x02.withdrawal_credentials,
+      joinHex([deposit0x02.signature, deposit0x02other.signature]),
+      [deposit0x02.deposit_data_root, deposit0x02other.deposit_data_root],
+      [deposit0x02.value, deposit0x02other.value]
+    )
+    expect(await contract.get_deposit_count()).to.be.equal('0x0200000000000000')
+    expect(await contract.get_deposit_root()).to.be.equal('0xa11734d2f286e9501a749b907c37712dbc762d01b8a72073a2f272a89b835634')
+    expect((await stake.balanceOf(contract.address)).toString()).to.be.equal('3000000000000000000')
+  })
+
   it('should deposit via transferAndCall', async () => {
     const invalidData = joinHex([deposit.withdrawal_credentials, deposit.pubkey, deposit.signature, invalidDataRoot])
     const data = joinHex([deposit.withdrawal_credentials, deposit.pubkey, deposit.signature, deposit.deposit_data_root])
@@ -228,7 +271,7 @@ contract('SBCDepositContractProxy', (accounts) => {
 
   it('should correctly withdraw GNO for multiple addresses', async () => {
     const addressCount = 4;
-    const amounts = Array.from({length: addressCount}, () => '0x0000000773594000') // 32 * 10^9
+    const amounts = Array.from({ length: addressCount }, () => '0x0000000773594000') // 32 * 10^9
     const addresses = accounts.slice(1, 1 + addressCount)
 
     // simple withdrawal
