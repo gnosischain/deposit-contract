@@ -101,7 +101,7 @@ contract SBCDepositContract is
         }
     }
 
-    function batchDepositVariableAmount(
+    function batchDeposit(
         bytes calldata pubkeys,
         bytes calldata withdrawal_credentials,
         bytes calldata signatures,

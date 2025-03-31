@@ -149,7 +149,7 @@ contract('SBCDepositContractProxy', (accounts) => {
   })
 
   it('should batch 0x02-style deposit', async () => {
-    await contract.batchDepositVariableAmount(
+    await contract.batchDeposit(
       joinHex([deposit0x02.pubkey, deposit0x02other.pubkey]),
       deposit0x02.withdrawal_credentials,
       joinHex([deposit0x02.signature, deposit0x02other.signature]),
@@ -157,7 +157,7 @@ contract('SBCDepositContractProxy', (accounts) => {
       [deposit0x02.value, deposit0x02other.value]
     ).should.be.rejected
     await stake.approve(contract.address, '1000000000000000000')
-    await contract.batchDepositVariableAmount(
+    await contract.batchDeposit(
       joinHex([deposit0x02.pubkey, deposit0x02other.pubkey]),
       deposit0x02.withdrawal_credentials,
       joinHex([deposit0x02.signature, deposit0x02other.signature]),
@@ -165,7 +165,7 @@ contract('SBCDepositContractProxy', (accounts) => {
       [deposit0x02.value, deposit0x02other.value]
     ).should.be.rejected
     await stake.approve(contract.address, '3000000000000000000')
-    await contract.batchDepositVariableAmount(
+    await contract.batchDeposit(
       joinHex([deposit0x02.pubkey, deposit0x02other.pubkey]),
       deposit0x02.withdrawal_credentials,
       joinHex([deposit0x02.signature, deposit0x02other.signature]),
