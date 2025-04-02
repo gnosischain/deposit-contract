@@ -115,7 +115,6 @@ contract SBCDepositContract is
         require(pubkeys.length == count * 48, "BatchDeposit: Pubkey count doesn't match");
         require(signatures.length == count * 96, "BatchDeposit: Signatures count doesn't match");
         require(withdrawal_credentials.length == 32, "BatchDeposit: Withdrawal Credentials count doesn't match");
-
         require(amounts.length == count, "BatchDeposit: Amounts count doesn't match");
 
         uint256 totalAmount = 0;
