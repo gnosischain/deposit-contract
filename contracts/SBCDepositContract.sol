@@ -84,8 +84,6 @@ contract SBCDepositContract is
     ) external whenNotPaused {
         uint256 count = deposit_data_roots.length;
         require(count > 0, "BatchDeposit: You should deposit at least one validator");
-        require(count <= 128, "BatchDeposit: You can deposit max 128 validators at a time");
-
         require(pubkeys.length == count * 48, "BatchDeposit: Pubkey count don't match");
         require(signatures.length == count * 96, "BatchDeposit: Signatures count don't match");
         require(withdrawal_credentials.length == 32, "BatchDeposit: Withdrawal Credentials count don't match");
@@ -110,8 +108,6 @@ contract SBCDepositContract is
     ) external whenNotPaused {
         uint256 count = deposit_data_roots.length;
         require(count > 0, "BatchDeposit: You should deposit at least one validator");
-        require(count <= 128, "BatchDeposit: You can deposit max 128 validators at a time");
-
         require(pubkeys.length == count * 48, "BatchDeposit: Pubkey count doesn't match");
         require(signatures.length == count * 96, "BatchDeposit: Signatures count doesn't match");
         require(withdrawal_credentials.length == 32, "BatchDeposit: Withdrawal Credentials count doesn't match");
