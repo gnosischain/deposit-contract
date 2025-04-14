@@ -84,8 +84,6 @@ contract SBCDepositContract is
     ) external whenNotPaused {
         uint256 count = deposit_data_roots.length;
         require(count > 0, "BatchDeposit: You should deposit at least one validator");
-        require(count <= 128, "BatchDeposit: You can deposit max 128 validators at a time");
-
         require(pubkeys.length == count * 48, "BatchDeposit: Pubkey count don't match");
         require(signatures.length == count * 96, "BatchDeposit: Signatures count don't match");
         require(withdrawal_credentials.length == 32, "BatchDeposit: Withdrawal Credentials count don't match");
@@ -98,6 +96,35 @@ contract SBCDepositContract is
             bytes memory signature = bytes(signatures[i * 96:(i + 1) * 96]);
 
             _deposit(pubkey, withdrawal_credentials, signature, deposit_data_roots[i], stake_amount);
+        }
+    }
+
+    function batchDeposit(
+        bytes calldata pubkeys,
+        bytes calldata withdrawal_credentials,
+        bytes calldata signatures,
+        bytes32[] calldata deposit_data_roots,
+        uint256[] calldata amounts
+    ) external whenNotPaused {
+        uint256 count = deposit_data_roots.length;
+        require(count > 0, "BatchDeposit: You should deposit at least one validator");
+        require(pubkeys.length == count * 48, "BatchDeposit: Pubkey count doesn't match");
+        require(signatures.length == count * 96, "BatchDeposit: Signatures count doesn't match");
+        require(withdrawal_credentials.length == 32, "BatchDeposit: Withdrawal Credentials count doesn't match");
+        require(amounts.length == count, "BatchDeposit: Amounts count doesn't match");
+
+        uint256 totalAmount = 0;
+        for (uint256 i = 0; i < count; ++i) {
+            totalAmount += amounts[i];
+        }
+
+        stake_token.transferFrom(msg.sender, address(this), totalAmount);
+
+        for (uint256 i = 0; i < count; ++i) {
+            bytes memory pubkey = bytes(pubkeys[i * 48:(i + 1) * 48]);
+            bytes memory signature = bytes(signatures[i * 96:(i + 1) * 96]);
+
+            _deposit(pubkey, withdrawal_credentials, signature, deposit_data_roots[i], amounts[i]);
         }
     }
 
