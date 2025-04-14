@@ -1,0 +1,25 @@
+name: test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 18
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v3
+        id: yarn-cache
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node_modules-${{ hashFiles('**/yarn.lock') }}
+      - run: yarn
+        if: ${{ !steps.yarn-cache.outputs.cache-hit }}
+      - run: yarn lint
+      - run: yarn test
+      - run: ADMIN=0xba61bac431387687512367672613571625671547 npm run compute-genesis-bytecode
